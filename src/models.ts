@@ -7,10 +7,10 @@ import { hasAnyTokenForPools } from "./token-pool";
 export type ModeId = "auto" | "fast" | "expert" | "heavy" | "grok-420-computer-use-sa";
 export type Tier = "basic" | "super" | "heavy";
 export type Capability = "chat" | "image" | "image_edit" | "video";
-export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 
-export const REASONING_EFFORTS: ReasoningEffort[] = ["none", "minimal", "low", "medium", "high", "xhigh"];
-const DEFAULT_CHAT_REASONING_EFFORTS: ReasoningEffort[] = ["none", "minimal", "low", "medium", "high", "xhigh"];
+export const REASONING_EFFORTS: ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh"];
+const DEFAULT_CHAT_REASONING_EFFORTS: ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh"];
 
 export interface ModelSpec {
   id: string;
@@ -53,7 +53,7 @@ export const MODELS: ModelSpec[] = [
     name: "Grok 4.3 (Console)",
     consoleModel: "grok-4.3",
     defaultReasoningEffort: "high",
-    supportedReasoningEfforts: ["none", "minimal", "low", "medium", "high", "xhigh"],
+    supportedReasoningEfforts: ["none", "low", "medium", "high", "xhigh"],
   },
   {
     id: "grok-4",
@@ -64,7 +64,7 @@ export const MODELS: ModelSpec[] = [
     name: "Grok 4 (Console)",
     consoleModel: "grok-4",
     defaultReasoningEffort: "high",
-    supportedReasoningEfforts: ["none", "minimal", "low", "medium", "high", "xhigh"],
+    supportedReasoningEfforts: ["none", "low", "medium", "high", "xhigh"],
   },
   {
     id: "grok-4.20",
@@ -104,7 +104,7 @@ export const MODELS: ModelSpec[] = [
     enabled: true,
     name: "Grok 4.20 Multi-Agent (Console)",
     consoleModel: "grok-4.20-multi-agent-0309",
-    supportedReasoningEfforts: ["none", "minimal", "low", "medium", "high", "xhigh"],
+    supportedReasoningEfforts: ["none", "low", "medium", "high", "xhigh"],
   },
   {
     id: "grok-build-0.1",
@@ -126,9 +126,6 @@ export const MODELS: ModelSpec[] = [
 
 const BY_ID = new Map(MODELS.map((m) => [m.id, m]));
 const WORKER_TESTED_MODEL_IDS = new Set<string>([
-  // grok.com app-chat path that has been verified in the Worker build.
-  "grok-4.20-fast",
-
   // console.x.ai-compatible public names with verified effort metadata.
   "grok-4.3",
   "grok-4",
@@ -158,37 +155,12 @@ export function isWorkerSupportedModel(spec: ModelSpec): boolean {
   return WORKER_TESTED_MODEL_IDS.has(spec.id);
 }
 
-const CONSOLE_APP_CHAT_FALLBACKS: Record<string, string> = {
-  "grok-4.3": "grok-4.3-beta",
-  "grok-4": "grok-4.20-auto",
-  "grok-4.20": "grok-4.20-auto",
-  "grok-4.20-reasoning": "grok-4.20-expert",
-  "grok-4.20-non-reasoning": "grok-4.20-fast",
-  "grok-4.20-multi-agent": "grok-4.20-multi-agent-0309",
-  "grok-build-0.1": "grok-4.20-fast",
-};
-
 export function useConsoleUpstream(env: Env): boolean {
-  return boolEnv(env, "USE_CONSOLE_UPSTREAM", false);
+  return boolEnv(env, "USE_CONSOLE_UPSTREAM", true);
 }
 
 export function appChatModelsEnabled(env: Env): boolean {
   return boolEnv(env, "ENABLE_APP_CHAT_MODELS", true);
-}
-
-export function appChatFallbackSpec(spec: ModelSpec): ModelSpec {
-  if (!spec.consoleModel) return spec;
-  const fallback = getModel(CONSOLE_APP_CHAT_FALLBACKS[spec.id] || "") || spec;
-  return {
-    ...fallback,
-    id: spec.id,
-    capability: spec.capability,
-    enabled: spec.enabled,
-    name: `${spec.name} via grok.com app-chat`,
-    consoleModel: undefined,
-    defaultReasoningEffort: spec.defaultReasoningEffort,
-    supportedReasoningEfforts: spec.supportedReasoningEfforts || DEFAULT_CHAT_REASONING_EFFORTS,
-  };
 }
 
 export function supportedReasoningEfforts(spec: ModelSpec): ReasoningEffort[] {
@@ -224,8 +196,9 @@ export function assertReasoningEffortSupported(spec: ModelSpec, effort: string |
 
 export function runtimeModelSpec(env: Env, spec: ModelSpec): ModelSpec | null {
   if (spec.consoleModel && useConsoleUpstream(env)) return spec;
+  if (spec.consoleModel) return null;
   if (!appChatModelsEnabled(env)) return null;
-  return spec.consoleModel ? appChatFallbackSpec(spec) : spec;
+  return spec;
 }
 
 function passesRuntimeStaticChecks(env: Env, spec: ModelSpec, exposeAll = false): boolean {

@@ -162,7 +162,7 @@ async function healthResponse(env: Env): Promise<Response> {
       stream_default: false,
       thinking_default: boolEnv(env, "THINKING", true),
       console_models: boolEnv(env, "ENABLE_CONSOLE_MODELS", true),
-      console_upstream: boolEnv(env, "USE_CONSOLE_UPSTREAM", false),
+      console_upstream: boolEnv(env, "USE_CONSOLE_UPSTREAM", true),
       app_chat_models: boolEnv(env, "ENABLE_APP_CHAT_MODELS", true),
       vpc_egress: boolEnv(env, "USE_VPC_EGRESS", false),
       vpc_egress_binding: !!env.EGRESS,
@@ -197,9 +197,10 @@ async function adminAddApiKey(request: Request, env: Env): Promise<Response> {
 async function adminUpdateApiKey(request: Request, env: Env, id: string): Promise<Response> {
   if (!id) throw new ApiError("API key id is required", { status: 400, type: "invalid_request_error", param: "id" });
   const body = await readJsonObject(request);
-  const patch: { enabled?: boolean; label?: string } = {};
+  const patch: { enabled?: boolean; label?: string; key?: string } = {};
   if (body.enabled !== undefined) patch.enabled = !!body.enabled;
   if (body.label !== undefined) patch.label = String(body.label || "");
+  if (body.key !== undefined) patch.key = String(body.key || "");
   const key = await updateApiKey(env, id, patch);
   return jsonResponse({ object: "api_key", data: key });
 }

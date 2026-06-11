@@ -197,7 +197,7 @@ const HTML = `<!doctype html>
     .stat.ok .v { color: var(--ok); }
     .stat.bad .v { color: var(--danger); }
 
-    .links { margin-top: auto; padding: 12px 14px; display: grid; gap: 7px; }
+    .links { padding: 10px 14px 12px; display: grid; gap: 7px; }
     .link {
       min-height: 36px;
       padding: 0 13px;
@@ -212,6 +212,17 @@ const HTML = `<!doctype html>
       font-size: 13px;
     }
     .link:hover { border-color: rgba(143,180,255,.35); color: var(--text); }
+    .admin-password-box {
+      margin-top: auto;
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(0,0,0,.10);
+      display: grid;
+      gap: 8px;
+    }
+    .admin-password-box .field { margin-bottom: 0; }
+    .admin-password-box .input { height: 32px; border-radius: 13px; font-size: 12px; }
+    .admin-password-box .chip { min-height: 22px; padding: 0 8px; font-size: 10.5px; }
 
     .chat-head {
       min-height: 70px;
@@ -322,12 +333,13 @@ const HTML = `<!doctype html>
       border-bottom: 1px solid var(--line);
       display: grid;
       gap: 5px;
-      max-height: 150px;
+      max-height: 138px;
       overflow: auto;
       scrollbar-gutter: stable;
     }
+    .api-key-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
     .compact-form { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr) auto; gap: 6px; align-items: center; }
-    .compact-form .input { height: 30px; border-radius: 12px; padding: 0 9px; font-size: 12px; }
+    .compact-form .input, .api-key-form .input { height: 30px; border-radius: 12px; padding: 0 9px; font-size: 12px; }
     .compact-check { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
     .key-list {
       max-height: 78px;
@@ -349,24 +361,38 @@ const HTML = `<!doctype html>
       align-items: center;
     }
     .key-card .row { gap: 4px; flex-wrap: nowrap; }
-    .key-main-line { min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
-    .key-label { min-width: 0; max-width: 86px; font-weight: 760; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .key-card .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .key-main-line .mono { flex: 1 1 auto; min-width: 46px; color: var(--muted); }
-    .key-card .chip { min-height: 19px; padding: 0 6px; font-size: 10px; }
+    .key-main-line { min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
+    .key-card .mono { overflow: auto; text-overflow: clip; white-space: nowrap; scrollbar-width: thin; }
+    .key-main-line .mono { flex: 1 1 auto; min-width: 46px; color: var(--text); }
+    .api-key-value { color: var(--text); letter-spacing: .01em; }
     .key-card .btn.small { min-height: 23px; padding: 0 7px; font-size: 11px; }
+    .icon-btn {
+      width: 30px;
+      min-width: 30px;
+      min-height: 24px;
+      padding: 0;
+      border-radius: 11px;
+    }
+    .key-card .btn.icon-btn { width: 24px; min-width: 24px; padding: 0; }
+    .icon-btn svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+    .secret-field {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+    }
     .key-enable { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 10.5px; white-space: nowrap; }
     .key-enable input { width: 13px; height: 13px; }
-    .generated-key {
-      margin-top: 2px;
-      border: 1px solid rgba(115,247,198,.28);
-      border-radius: 12px;
-      background: rgba(115,247,198,.08);
-      padding: 6px;
-      display: grid;
-      gap: 5px;
-      font-size: 11px;
-    }
     .hidden { display: none !important; }
     .add-box { padding: 7px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 5px; }
     .add-box .field { margin-bottom: 0; }
@@ -466,41 +492,6 @@ const HTML = `<!doctype html>
     .login-actions { margin-top: 14px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
     .remember { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 7px; }
 
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 45;
-      display: grid;
-      place-items: center;
-      padding: 18px;
-      background: rgba(5, 6, 10, .58);
-      backdrop-filter: blur(14px);
-      opacity: 1;
-      pointer-events: auto;
-      transition: opacity .18s ease;
-    }
-    .modal-overlay.hidden { opacity: 0; pointer-events: none; }
-    .settings-dialog {
-      width: min(460px, 100%);
-      border: 1px solid var(--line-2);
-      border-radius: 28px;
-      padding: 18px;
-      background: linear-gradient(180deg, rgba(20,24,34,.97), rgba(9,11,17,.97));
-      box-shadow: 0 34px 110px rgba(0,0,0,.56);
-      animation: enter .22s ease both;
-    }
-    .settings-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-    .settings-title { margin: 0; font-size: 20px; letter-spacing: -.035em; }
-    .settings-sub { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-    .settings-block {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 12px;
-      background: rgba(255,255,255,.035);
-      display: grid;
-      gap: 9px;
-    }
-
     @media (max-width: 1180px) {
       body { overflow: auto; }
       .app { height: auto; grid-template-columns: 260px minmax(0, 1fr); }
@@ -535,7 +526,10 @@ const HTML = `<!doctype html>
       </div>
       <label class="field">
         <span class="label">管理密码</span>
-        <input id="loginKeyInput" class="input" type="password" placeholder="输入管理密码" autocomplete="current-password" />
+        <div class="secret-field">
+          <input id="loginKeyInput" class="input" type="password" placeholder="输入管理密码" autocomplete="current-password" />
+          <button id="loginToggleKeyBtn" class="btn small icon-btn" type="button" aria-label="显示管理密码" title="显示/隐藏管理密码"></button>
+        </div>
       </label>
       <div class="login-actions">
         <label class="remember">
@@ -586,6 +580,24 @@ const HTML = `<!doctype html>
         <a class="link" href="/health" target="_blank" rel="noreferrer"><span>/health</span><span>打开</span></a>
         <a class="link" href="/v1/models" target="_blank" rel="noreferrer"><span>/v1/models</span><span>打开</span></a>
       </div>
+
+      <section class="admin-password-box" aria-label="管理密码">
+        <div class="row between">
+          <h2 class="section-title" style="margin:0">管理密码</h2>
+          <span id="keyChip" class="chip warn">未保存</span>
+        </div>
+        <label class="field">
+          <span class="label">ADMIN_PASSWORD</span>
+          <div class="secret-field">
+            <input id="settingsAdminPasswordInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
+            <button id="settingsToggleKeyBtn" class="btn small icon-btn" type="button" aria-label="显示管理密码" title="显示/隐藏管理密码"></button>
+          </div>
+        </label>
+        <div class="row">
+          <button id="settingsSaveKeyBtn" class="btn primary small" type="button">保存/登录</button>
+          <button id="settingsClearKeyBtn" class="btn ghost small" type="button">退出</button>
+        </div>
+      </section>
     </aside>
 
     <section class="chat" aria-label="AI 聊天窗口">
@@ -607,7 +619,6 @@ const HTML = `<!doctype html>
             <option value="xhigh">reasoning xhigh</option>
           </select>
           <button id="copyCurlBtn" class="btn small" type="button">复制 curl</button>
-          <button id="settingsBtn" class="btn small" type="button">设置</button>
         </div>
       </header>
 
@@ -643,22 +654,15 @@ const HTML = `<!doctype html>
 
       <section class="api-key-box" aria-label="下游 API Key 管理">
         <div class="row between">
-          <h3 class="mini-title">下游 API Keys</h3>
+          <h3 class="mini-title">下游 API Key</h3>
           <div class="row" style="gap:5px">
             <label class="compact-check"><input id="apiKeyEnabledInput" type="checkbox" checked />启用</label>
             <button id="reloadApiKeysBtn" class="btn small" type="button">刷新</button>
           </div>
         </div>
-        <div class="compact-form">
-          <input id="apiKeyLabelInput" class="input" placeholder="标签" maxlength="80" />
-          <input id="apiKeyValueInput" class="input" type="password" placeholder="API Key，留空自动生成" autocomplete="off" />
-          <button id="addApiKeyBtn" class="btn primary small" type="button">添加</button>
-        </div>
-        <div id="generatedApiKeyBox" class="generated-key hidden">
-          <div class="row between">
-            <code id="generatedApiKeyText" class="mono" style="word-break:break-all; min-width:0"></code>
-            <button id="copyGeneratedApiKeyBtn" class="btn small" type="button">复制</button>
-          </div>
+        <div class="api-key-form">
+          <input id="apiKeyValueInput" class="input" type="password" placeholder="留空自动生成；输入则替换当前 API Key" autocomplete="off" />
+          <button id="addApiKeyBtn" class="btn primary small" type="button">保存</button>
         </div>
         <div id="apiKeyList" class="key-list"></div>
       </section>
@@ -689,40 +693,13 @@ const HTML = `<!doctype html>
     </aside>
   </main>
 
-  <div id="settingsOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <section class="settings-dialog">
-      <div class="settings-head">
-        <div>
-          <h2 id="settingsTitle" class="settings-title">设置</h2>
-          <p class="settings-sub">管理页登录使用 ADMIN_PASSWORD；这里仅保存到当前浏览器，不会修改 Cloudflare Secret。</p>
-        </div>
-        <button id="settingsCloseBtn" class="btn small ghost" type="button" aria-label="关闭设置">关闭</button>
-      </div>
-      <div class="settings-block">
-        <div class="row between">
-          <h3 class="mini-title">管理密码</h3>
-          <span id="keyChip" class="chip warn">未保存</span>
-        </div>
-        <label class="field">
-          <span class="label">ADMIN_PASSWORD</span>
-          <input id="settingsAdminPasswordInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
-        </label>
-        <div class="row">
-          <button id="settingsSaveKeyBtn" class="btn primary small" type="button">登录/更新</button>
-          <button id="settingsToggleKeyBtn" class="btn small" type="button">显示</button>
-          <button id="settingsClearKeyBtn" class="btn ghost small" type="button">退出</button>
-        </div>
-      </div>
-    </section>
-  </div>
-
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
     (function () {
       var STORAGE_KEY = "grok2api_admin_password";
       var SESSION_KEY = "grok2api_admin_session_password";
-      var REASONING_OPTIONS = ["none", "minimal", "low", "medium", "high", "xhigh"];
+      var REASONING_OPTIONS = ["none", "low", "medium", "high", "xhigh"];
       var state = {
         key: localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(SESSION_KEY) || "",
         health: null,
@@ -733,7 +710,6 @@ const HTML = `<!doctype html>
         apiKeys: [],
         apiKeyCounts: null,
         apiKeyKvConfigured: false,
-        generatedApiKey: "",
         tokens: [],
         counts: null,
         kvConfigured: false,
@@ -745,6 +721,34 @@ const HTML = `<!doctype html>
 
       function qs(id) { return document.getElementById(id); }
       function text(id, value) { qs(id).textContent = value == null ? "" : String(value); }
+      function iconSvg(name) {
+        if (name === "eye-off") {
+          return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 10.6A2 2 0 0 0 13.4 13.4"></path><path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5.5 0 9 5 9 8a8.7 8.7 0 0 1-1.7 3.8"></path><path d="M6.1 6.1C4.2 7.5 3 9.7 3 12c0 3 3.5 8 9 8 1.5 0 2.9-.4 4.1-1.1"></path></svg>';
+        }
+        if (name === "copy") {
+          return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        }
+        if (name === "edit") {
+          return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
+        }
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+      }
+      function setIcon(btn, name) {
+        if (!btn) return;
+        btn.innerHTML = iconSvg(name);
+      }
+      function bindSecretToggle(inputId, buttonId) {
+        var input = qs(inputId);
+        var btn = qs(buttonId);
+        if (!input || !btn) return;
+        setIcon(btn, input.type === "password" ? "eye" : "eye-off");
+        btn.addEventListener("click", function () {
+          input.type = input.type === "password" ? "text" : "password";
+          var showing = input.type !== "password";
+          btn.setAttribute("aria-label", showing ? "隐藏管理密码" : "显示管理密码");
+          setIcon(btn, showing ? "eye-off" : "eye");
+        });
+      }
       function headersForKey(key) {
         var h = { "Content-Type": "application/json" };
         if (key) h["X-Admin-Key"] = key;
@@ -1088,6 +1092,11 @@ const HTML = `<!doctype html>
         chip.textContent = state.kvConfigured || state.apiKeyKvConfigured ? "KV 已连接" : "KV 未配置";
       }
 
+      function apiKeyDisplayValue(key, visible) {
+        if (key && key.secret) return visible ? key.secret : "••••••••";
+        return "完整值未保存，请重新保存";
+      }
+
       function renderApiKeys() {
         renderKvStatus();
         var list = qs("apiKeyList");
@@ -1100,28 +1109,18 @@ const HTML = `<!doctype html>
           list.innerHTML = '<div class="empty-list" style="padding:8px">暂无 API Key。</div>';
           return;
         }
-        state.apiKeys.slice().sort(function (a, b) {
-          return String(a.source).localeCompare(String(b.source)) || String(a.label).localeCompare(String(b.label));
-        }).forEach(function (key) {
+        state.apiKeys.slice(0, 1).forEach(function (key) {
           var card = document.createElement("div");
           card.className = "key-card";
 
           var main = document.createElement("div");
           main.className = "key-main-line";
-          var label = document.createElement("span");
-          label.className = "key-label";
-          label.textContent = key.label || "API key";
-          label.title = key.label || "API key";
           var value = document.createElement("span");
-          value.className = "mono";
-          value.textContent = key.masked || "sk-…";
-          value.dataset.visible = "0";
-          var source = document.createElement("span");
-          source.className = "chip plain";
-          source.textContent = key.readonly ? "secret" : "KV";
-          main.appendChild(label);
+          value.className = "mono api-key-value";
+          value.textContent = apiKeyDisplayValue(key, true);
+          value.title = apiKeyDisplayValue(key, true);
+          value.dataset.visible = key.secret ? "1" : "0";
           main.appendChild(value);
-          main.appendChild(source);
 
           var actions = document.createElement("div");
           actions.className = "row";
@@ -1135,19 +1134,25 @@ const HTML = `<!doctype html>
           enabledLabel.appendChild(enabledBox);
           enabledLabel.appendChild(document.createTextNode("启用"));
           var show = document.createElement("button");
-          show.className = "btn small";
+          show.className = "btn small icon-btn";
           show.type = "button";
-          show.textContent = "显示";
+          show.title = "显示/隐藏 API Key";
+          show.setAttribute("aria-label", key.secret ? "隐藏 API Key" : "显示 API Key");
+          setIcon(show, key.secret ? "eye-off" : "eye");
           show.addEventListener("click", function () { toggleApiKeyVisible(key, value, show); });
           var copy = document.createElement("button");
-          copy.className = "btn small";
+          copy.className = "btn small icon-btn";
           copy.type = "button";
-          copy.textContent = "复制";
+          copy.title = "复制 API Key";
+          copy.setAttribute("aria-label", "复制 API Key");
+          setIcon(copy, "copy");
           copy.addEventListener("click", function () { copyApiKey(key); });
           var edit = document.createElement("button");
-          edit.className = "btn small";
+          edit.className = "btn small icon-btn";
           edit.type = "button";
-          edit.textContent = "编辑";
+          edit.title = "编辑 API Key";
+          edit.setAttribute("aria-label", "编辑 API Key");
+          setIcon(edit, "edit");
           edit.addEventListener("click", function () { editApiKey(key); });
           actions.appendChild(enabledLabel);
           actions.appendChild(show);
@@ -1347,18 +1352,6 @@ const HTML = `<!doctype html>
         qs("reloadApiKeysBtn").disabled = busy;
       }
 
-      function showGeneratedApiKey(secret) {
-        state.generatedApiKey = String(secret || "");
-        var box = qs("generatedApiKeyBox");
-        if (!state.generatedApiKey) {
-          box.classList.add("hidden");
-          text("generatedApiKeyText", "");
-          return;
-        }
-        text("generatedApiKeyText", state.generatedApiKey);
-        box.classList.remove("hidden");
-      }
-
       function readFileText(file) {
         if (file && typeof file.text === "function") return file.text();
         return new Promise(function (resolve, reject) {
@@ -1394,17 +1387,14 @@ const HTML = `<!doctype html>
             headers: headers(),
             body: JSON.stringify({
               key: value,
-              label: qs("apiKeyLabelInput").value.trim(),
               enabled: qs("apiKeyEnabledInput").checked
             })
           });
           qs("apiKeyValueInput").value = "";
-          qs("apiKeyLabelInput").value = "";
-          showGeneratedApiKey(data && data.secret ? data.secret : "");
-          toast(data && data.secret ? "API Key 已生成，请复制保存" : "API Key 已添加");
+          toast(value ? "API Key 已保存" : "API Key 已自动生成并保存");
           await loadApiKeys();
         } catch (err) {
-          if (!handleAuthError(err)) toast("API Key 添加失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("API Key 保存失败：" + (err.message || String(err)));
         } finally {
           setApiKeyWriteBusy(false);
         }
@@ -1412,13 +1402,21 @@ const HTML = `<!doctype html>
 
       async function setApiKeyEnabled(key, enabled) {
         if (!requireKey()) return;
-        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中修改"); await loadApiKeys(); return; }
         try {
-          await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
-            method: "PATCH",
-            headers: headers(),
-            body: JSON.stringify({ enabled: !!enabled })
-          });
+          if (key.readonly) {
+            if (!key.secret) throw new Error("当前 API Key 未返回完整值，无法接管启用状态");
+            await fetchJson("/admin/api/api-keys", {
+              method: "POST",
+              headers: headers(),
+              body: JSON.stringify({ key: key.secret, enabled: !!enabled })
+            });
+          } else {
+            await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
+              method: "PATCH",
+              headers: headers(),
+              body: JSON.stringify({ enabled: !!enabled })
+            });
+          }
           toast(enabled ? "API Key 已启用" : "API Key 已禁用");
           await loadApiKeys();
         } catch (err) {
@@ -1429,50 +1427,58 @@ const HTML = `<!doctype html>
 
       function toggleApiKeyVisible(key, valueEl, btn) {
         if (valueEl.dataset.visible === "1") {
-          valueEl.textContent = key.masked || "sk-…";
+          valueEl.textContent = apiKeyDisplayValue(key, false);
+          valueEl.title = "";
           valueEl.dataset.visible = "0";
-          btn.textContent = "显示";
+          btn.setAttribute("aria-label", "显示 API Key");
+          setIcon(btn, "eye");
           return;
         }
         if (key.secret) {
           valueEl.textContent = key.secret;
+          valueEl.title = key.secret;
           valueEl.dataset.visible = "1";
-          btn.textContent = "隐藏";
+          btn.setAttribute("aria-label", "隐藏 API Key");
+          setIcon(btn, "eye-off");
           return;
         }
-        valueEl.textContent = key.masked || "sk-…";
-        toast(key.readonly ? "Cloudflare Secret API_KEY 不能在管理页显示完整值" : "旧 API Key 未保存明文，只能显示脱敏值");
+        valueEl.textContent = apiKeyDisplayValue(key, true);
+        toast("旧 API Key 未保存完整值，请重新保存或替换");
       }
 
       function copyApiKey(key) {
-        var value = key.secret || key.masked || "";
-        if (!value) return;
+        var value = key.secret || "";
+        if (!value) { toast("没有完整 API Key 可复制，请重新保存或替换"); return; }
         navigator.clipboard.writeText(value).then(function () {
-          toast(key.secret ? "API Key 已复制" : "只能复制脱敏值，完整值未存储");
+          toast("完整 API Key 已复制");
         }, function () { toast("复制失败"); });
       }
 
       async function editApiKey(key) {
         if (!requireKey()) return;
-        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中修改"); return; }
-        var label = prompt("编辑 API Key 标签", key.label || "");
-        if (label === null) return;
+        var replacement = prompt("替换 API Key（留空取消）", key.secret || "");
+        if (replacement === null) return;
+        replacement = String(replacement || "").trim();
+        if (!replacement) return;
         try {
-          await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
-            method: "PATCH",
-            headers: headers(),
-            body: JSON.stringify({ label: String(label || "").trim() })
-          });
-          toast("API Key 已更新");
+          if (key.readonly) {
+            await fetchJson("/admin/api/api-keys", {
+              method: "POST",
+              headers: headers(),
+              body: JSON.stringify({ key: replacement, enabled: key.enabled !== false })
+            });
+          } else {
+            await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
+              method: "PATCH",
+              headers: headers(),
+              body: JSON.stringify({ key: replacement })
+            });
+          }
+          toast("API Key 已替换");
           await loadApiKeys();
         } catch (err) {
           if (!handleAuthError(err)) toast("API Key 编辑失败：" + (err.message || String(err)));
         }
-      }
-
-      function copyGeneratedApiKey() {
-        if (!state.generatedApiKey) return;
-        navigator.clipboard.writeText(state.generatedApiKey).then(function () { toast("API Key 已复制"); }, function () { toast("复制失败"); });
       }
 
       async function addToken() {
@@ -1606,7 +1612,6 @@ const HTML = `<!doctype html>
         try {
           await loginWithKey(qs("settingsAdminPasswordInput").value, true);
           toast(state.key ? "已登录" : "已保存");
-          closeSettings();
         } catch (err) {
           showLogin(err.message || String(err));
           qs("loginKeyInput").value = qs("settingsAdminPasswordInput").value;
@@ -1621,19 +1626,6 @@ const HTML = `<!doctype html>
         renderApiKeys();
         renderTokens();
         if (state.health && isAdminAuthRequired()) showLogin("已退出，请重新登录");
-      }
-      function openSettings() {
-        var overlay = qs("settingsOverlay");
-        overlay.classList.remove("hidden");
-        syncKeyInputs();
-        setTimeout(function () {
-          var input = qs("settingsAdminPasswordInput");
-          if (input) input.focus();
-        }, 20);
-      }
-      function closeSettings() {
-        var overlay = qs("settingsOverlay");
-        overlay.classList.add("hidden");
       }
       function copyCurl() {
         var prompt = qs("promptInput").value.trim() || "请只回复 ok";
@@ -1675,19 +1667,11 @@ const HTML = `<!doctype html>
 
       function bind() {
         syncKeyInputs();
+        bindSecretToggle("loginKeyInput", "loginToggleKeyBtn");
+        bindSecretToggle("settingsAdminPasswordInput", "settingsToggleKeyBtn");
         qs("loginForm").addEventListener("submit", submitLogin);
-        qs("settingsBtn").addEventListener("click", openSettings);
-        qs("settingsCloseBtn").addEventListener("click", closeSettings);
-        qs("settingsOverlay").addEventListener("click", function (event) {
-          if (event.target === qs("settingsOverlay")) closeSettings();
-        });
         qs("settingsSaveKeyBtn").addEventListener("click", saveKey);
         qs("settingsClearKeyBtn").addEventListener("click", clearKey);
-        qs("settingsToggleKeyBtn").addEventListener("click", function () {
-          var input = qs("settingsAdminPasswordInput");
-          input.type = input.type === "password" ? "text" : "password";
-          qs("settingsToggleKeyBtn").textContent = input.type === "password" ? "显示" : "隐藏";
-        });
         qs("modelSelect").addEventListener("change", function () {
           state.selectedModel = qs("modelSelect").value || "";
           renderReasoningOptions();
@@ -1701,7 +1685,6 @@ const HTML = `<!doctype html>
         qs("refreshBtn").addEventListener("click", refreshAll);
         qs("reloadApiKeysBtn").addEventListener("click", loadApiKeys);
         qs("addApiKeyBtn").addEventListener("click", addApiKey);
-        qs("copyGeneratedApiKeyBtn").addEventListener("click", copyGeneratedApiKey);
         qs("reloadTokensBtn").addEventListener("click", loadTokens);
         qs("clearChatBtn").addEventListener("click", clearChat);
         qs("chatForm").addEventListener("submit", sendChat);

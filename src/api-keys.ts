@@ -48,8 +48,9 @@ const encoder = new TextEncoder();
 export async function publicApiKeys(env: Env): Promise<PublicApiKey[]> {
   const envRows = envApiKeyRows(env);
   const store = await readStore(env);
-  const managed = store.keys.map(publicManagedKey);
-  return [...envRows, ...managed];
+  const managed = effectiveStoredApiKey(store.keys);
+  const effective = managed ? publicManagedKey(managed) : envRows[0];
+  return effective ? [effective] : [];
 }
 
 export function apiKeyCounts(keys: PublicApiKey[]): { total: number; enabled: number; disabled: number; env: number; managed: number } {
@@ -76,45 +77,42 @@ export async function addApiKey(env: Env, args: { key?: string; label?: string; 
   const now = nowSeconds();
   const hash = await hashSecret(secret);
   const id = apiKeyId(hash);
-  const label = cleanLabel(args.label) || (generated ? "Generated API key" : "Managed API key");
-  const existing = store.keys.find((row) => row.id === id || timingSafeEqual(row.hash, hash));
-
-  if (existing) {
-    existing.id = id;
-    existing.hash = hash;
-    existing.masked = maskApiKey(secret);
-    existing.label = label;
-    existing.enabled = args.enabled ?? existing.enabled;
-    existing.updated_at = now;
-  } else {
-    store.keys.push({
-      id,
-      hash,
-      masked: maskApiKey(secret),
-      secret,
-      label,
-      enabled: args.enabled ?? true,
-      created_at: now,
-      updated_at: now,
-    });
-  }
-  if (existing) {
-    existing.secret = secret;
-  }
+  const existing = store.keys.find((row) => row.id === id || timingSafeEqual(row.hash, hash)) || store.keys[0];
+  const row: StoredApiKey = {
+    id,
+    hash,
+    masked: maskApiKey(secret),
+    secret,
+    label: "",
+    enabled: args.enabled ?? existing?.enabled ?? true,
+    created_at: existing?.created_at || now,
+    updated_at: now,
+  };
+  store.keys = [row];
 
   await writeStore(env, store);
-  const row = (await publicApiKeys(env)).find((item) => item.id === id);
-  if (!row) throw new ApiError("API key was saved but could not be reloaded", { status: 500, type: "server_error" });
-  return generated ? { key: row, secret, generated } : { key: row, generated };
+  const publicRow = publicManagedKey(row);
+  return { key: publicRow, secret, generated };
 }
 
-export async function updateApiKey(env: Env, id: string, patch: { enabled?: boolean; label?: string }): Promise<PublicApiKey> {
+export async function updateApiKey(env: Env, id: string, patch: { enabled?: boolean; label?: string; key?: string }): Promise<PublicApiKey> {
   const store = await readStore(env);
   const row = store.keys.find((item) => item.id === id);
   if (!row) throw new ApiError("Managed API key not found", { status: 404, type: "invalid_request_error", code: "not_found" });
   if (patch.enabled !== undefined) row.enabled = !!patch.enabled;
-  if (patch.label !== undefined) row.label = cleanLabel(patch.label) || row.label;
+  if (patch.label !== undefined) row.label = "";
+  if (patch.key !== undefined) {
+    const secret = String(patch.key || "").trim();
+    if (!secret) throw new ApiError("API key is required", { status: 400, type: "invalid_request_error", param: "key" });
+    const hash = await hashSecret(secret);
+    row.id = apiKeyId(hash);
+    row.hash = hash;
+    row.masked = maskApiKey(secret);
+    row.secret = secret;
+  }
+  row.label = "";
   row.updated_at = nowSeconds();
+  store.keys = [row];
   await writeStore(env, store);
   return publicManagedKey(row);
 }
@@ -131,17 +129,19 @@ export async function deleteApiKey(env: Env, id: string): Promise<void> {
 
 export async function validateApiKey(env: Env, token: string): Promise<ApiKeyValidationResult> {
   const envKeys = parseApiKeys(env.API_KEY);
-  for (const key of envKeys) {
-    if (timingSafeEqual(token, key)) return { required: true, valid: true };
+  const store = await readStore(env);
+  const managed = effectiveStoredApiKey(store.keys);
+  const required = envKeys.length > 0 || !!managed;
+
+  if (managed) {
+    if (!token || !managed.enabled || !managed.hash) return { required, valid: false };
+    const hash = await hashSecret(token);
+    return { required, valid: timingSafeEqual(hash, managed.hash) };
   }
 
-  const store = await readStore(env);
-  const enabledManaged = store.keys.filter((row) => row.enabled && row.hash);
-  const required = envKeys.length > 0 || store.keys.length > 0;
-  if (!token || !enabledManaged.length) return { required, valid: false };
-
-  const hash = await hashSecret(token);
-  return { required, valid: enabledManaged.some((row) => timingSafeEqual(hash, row.hash)) };
+  const envKey = envKeys[0];
+  if (!envKey) return { required: false, valid: false };
+  return { required: true, valid: !!token && timingSafeEqual(token, envKey) };
 }
 
 export async function hasAnyApiKey(env: Env): Promise<boolean> {
@@ -198,21 +198,27 @@ function emptyStore(): ApiKeyStoreData {
 }
 
 function envApiKeyRows(env: Env): PublicApiKey[] {
-  return parseApiKeys(env.API_KEY).map((key, index) => ({
+  return parseApiKeys(env.API_KEY).slice(0, 1).map((key, index) => ({
     id: `env_${index + 1}_${fnv1a(key)}`,
     source: "env",
-    label: index === 0 ? "Cloudflare API_KEY" : `Cloudflare API_KEY ${index + 1}`,
+    label: "",
     masked: maskApiKey(key),
+    secret: key,
     enabled: true,
     readonly: true,
   }));
+}
+
+function effectiveStoredApiKey(keys: StoredApiKey[]): StoredApiKey | undefined {
+  const rows = keys.slice().sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
+  return rows.find((row) => !!row.secret) || rows[0];
 }
 
 function publicManagedKey(row: StoredApiKey): PublicApiKey {
   return {
     id: row.id,
     source: "managed",
-    label: cleanLabel(row.label) || "Managed API key",
+    label: "",
     masked: row.masked || "sk-…",
     secret: row.secret || undefined,
     enabled: row.enabled !== false,
@@ -229,7 +235,7 @@ function normalizeStoredApiKey(row: StoredApiKey): StoredApiKey {
     hash,
     masked: String(row.masked || "sk-…").trim(),
     secret: typeof row.secret === "string" ? row.secret.trim() : undefined,
-    label: cleanLabel(row.label || "Managed API key"),
+    label: "",
     enabled: row.enabled !== false,
     created_at: Number(row.created_at || nowSeconds()),
     updated_at: Number(row.updated_at || nowSeconds()),
@@ -264,10 +270,6 @@ function maskApiKey(key: string): string {
   if (!clean) return "sk-…";
   if (clean.length <= 12) return `${clean.slice(0, 3)}…${clean.slice(-2)}`;
   return `${clean.slice(0, 7)}…${clean.slice(-4)}`;
-}
-
-function cleanLabel(label: unknown): string {
-  return String(label || "").trim().slice(0, 80);
 }
 
 function timingSafeEqual(a: string, b: string): boolean {

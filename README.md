@@ -88,8 +88,8 @@ npm run deploy
 - `GROK_TOKENS`：Grok SSO token，支持多个，逗号或换行分隔
 - `GROK_BASIC_TOKENS` / `GROK_SUPER_TOKENS` / `GROK_HEAVY_TOKENS`：分层 Token 池
 - `TOKEN_STORE`：KV binding，管理页新增的 API Keys 和 Token 池需要它
-- `USE_CONSOLE_UPSTREAM`：是否直连 Console 上游，默认 `false`
-- `ENABLE_APP_CHAT_MODELS`：是否启用 app-chat 路径模型，默认 `true`
+- `USE_CONSOLE_UPSTREAM`：是否直连 Console 上游，默认 `true`；设为 `false` 时不会把 Console 模型降级转到 grok.com app-chat
+- `ENABLE_APP_CHAT_MODELS`：是否启用 app-chat 路径模型，默认 `true`；`grok-4.20-fast` 当前未验证成功，默认不会在 `/v1/models` 暴露
 - `USE_VPC_EGRESS`：是否使用 Cloudflare VPC/Gateway 出站，默认 `false`
 
 ## 调用示例

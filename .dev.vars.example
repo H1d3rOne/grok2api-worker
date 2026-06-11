@@ -30,13 +30,12 @@ STREAM=false
 THINKING=true
 CONSOLE_WEB_SEARCH=true
 
-# 默认 false：即使对外模型名是 grok-4.3 / grok-4，也走 grok.com app-chat 上游，
-# Worker 负责转换成 /v1/chat/completions、/v1/responses、/v1/messages 返回格式。
-# 只有设为 true 时，Console 模型才直连 https://console.x.ai/v1/responses。
-USE_CONSOLE_UPSTREAM=false
+# 已验证的聊天模型走 https://console.x.ai/v1/responses。
+# 设为 false 时不会再把 grok-4.3 / grok-4 等模型降级转到 grok.com app-chat。
+USE_CONSOLE_UPSTREAM=true
 
 # 是否暴露/允许 grok.com app-chat 路径模型。
-# 如果云端 app-chat 被上游 403，可设为 false，这样 /v1/models 只显示当前可用模型。
+# 当前 grok-4.20-fast/app-chat 没有 Worker 端成功证据，默认模型列表不会暴露它。
 ENABLE_APP_CHAT_MODELS=true
 
 # Cloudflare Gateway / Workers VPC 出站。普通本地 dev 保持 false。

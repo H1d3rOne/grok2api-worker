@@ -4,7 +4,6 @@ import { boolEnv, floatEnv, intEnv, retryCodes } from "../config";
 import { ApiError, normalizeError, UpstreamError } from "../errors";
 import {
   REASONING_EFFORTS,
-  appChatFallbackSpec,
   assertReasoningEffortSupported,
   getModel,
   isRuntimeAvailableModel,
@@ -98,8 +97,6 @@ export async function handleChatCompletions(request: Request, env: Env): Promise
     }
     assertReasoningEffortSupported(spec, req.reasoning_effort ?? spec.defaultReasoningEffort ?? null);
     return consoleChat(req, spec, env, isStream, emitThink);
-  } else if (spec.consoleModel) {
-    runtimeSpec = appChatFallbackSpec(spec);
   }
 
   assertReasoningEffortSupported(runtimeSpec, req.reasoning_effort ?? runtimeSpec.defaultReasoningEffort ?? null);
