@@ -4,11 +4,12 @@ ADMIN_PASSWORD=admin-change-me
 # Client-side API key for /v1/*. Empty or unset means no API auth until managed keys are added.
 API_KEY=change-me
 
-# SSO token(s). Accepts comma/newline-separated values or a JSON array.
+# Optional bootstrap SSO token(s). You can also import tokens in /admin after startup/deploy.
+# Accepts comma/newline-separated values or a JSON array.
 # If you only set GROK_TOKENS, the worker uses it as a generic fallback for all model tiers.
-GROK_TOKENS=sso-token-1,sso-token-2
+# GROK_TOKENS=sso-token-1,sso-token-2
 
-# Optional tier-specific pools. These take priority over generic GROK_TOKENS.
+# Optional tier-specific bootstrap pools. These take priority over generic GROK_TOKENS.
 # GROK_BASIC_TOKENS=...
 # GROK_SUPER_TOKENS=...
 # GROK_HEAVY_TOKENS=...

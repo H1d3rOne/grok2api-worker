@@ -30,7 +30,8 @@ cp .dev.vars.example .dev.vars
 ```ini
 ADMIN_PASSWORD=admin-change-me
 API_KEY=change-me
-GROK_TOKENS=your-sso-token
+# 可选：也可以启动后在 /admin 页面导入 Token
+# GROK_TOKENS=your-sso-token
 ```
 
 启动：
@@ -65,12 +66,11 @@ npx wrangler login
 npm run setup:kv
 ```
 
-3. 设置密钥：
+3. 设置管理密码和下游 API Key：
 
 ```bash
 npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put API_KEY
-npx wrangler secret put GROK_TOKENS
 ```
 
 4. 部署：
@@ -79,14 +79,17 @@ npx wrangler secret put GROK_TOKENS
 npm run deploy
 ```
 
+5. 打开 `/admin`，用管理密码登录后，在 Token 池里直接粘贴或导入 token 文件即可。
+
 ## 常用配置
 
 敏感信息不要写进 `wrangler.toml`，请用 `wrangler secret put`。
 
 - `ADMIN_PASSWORD`：管理页登录密码，必须单独设置，不会使用 `API_KEY` 兜底
 - `API_KEY`：下游调用 `/v1/*` 的 Bearer key；也可以在管理页新增 API Key（保存到 KV）
-- `GROK_TOKENS`：Grok SSO token，支持多个，逗号或换行分隔
-- `GROK_BASIC_TOKENS` / `GROK_SUPER_TOKENS` / `GROK_HEAVY_TOKENS`：分层 Token 池
+- Grok SSO Tokens：推荐部署后在 `/admin` 管理页粘贴或导入文件，保存到 KV
+- `GROK_TOKENS`：可选的启动兜底 Token Secret，适合无 KV 或想用命令行预置；支持多个，逗号或换行分隔
+- `GROK_BASIC_TOKENS` / `GROK_SUPER_TOKENS` / `GROK_HEAVY_TOKENS`：可选分层 Token Secret
 - `TOKEN_STORE`：KV binding，管理页新增的 API Keys 和 Token 池需要它
 - `USE_CONSOLE_UPSTREAM`：是否直连 Console 上游，默认 `true`；设为 `false` 时不会把 Console 模型降级转到 grok.com app-chat
 - `ENABLE_APP_CHAT_MODELS`：是否启用 app-chat 路径模型，默认 `true`；`grok-4.20-fast` 当前未验证成功，默认不会在 `/v1/models` 暴露
