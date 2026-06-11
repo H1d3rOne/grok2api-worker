@@ -373,6 +373,45 @@ const HTML = `<!doctype html>
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(115, 247, 198, .16), transparent 30rem),
+        rgba(5, 6, 10, .72);
+      backdrop-filter: blur(18px);
+      opacity: 1;
+      pointer-events: auto;
+      transition: opacity .2s ease;
+    }
+    .login-overlay.hidden { opacity: 0; pointer-events: none; }
+    .app.locked { filter: blur(6px); pointer-events: none; user-select: none; }
+    .login-dialog {
+      width: min(420px, 100%);
+      border: 1px solid var(--line-2);
+      border-radius: 30px;
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(20,24,34,.96), rgba(9,11,17,.96));
+      box-shadow: 0 34px 110px rgba(0,0,0,.58);
+      animation: enter .28s ease both;
+    }
+    .login-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .login-title { margin: 0; font-size: 22px; letter-spacing: -.04em; }
+    .login-sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .login-error {
+      min-height: 18px;
+      margin: 10px 0 0;
+      color: #ffd7dc;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .login-actions { margin-top: 14px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+    .remember { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 7px; }
+
     @media (max-width: 1180px) {
       body { overflow: auto; }
       .app { height: auto; grid-template-columns: 260px minmax(0, 1fr); }
@@ -396,6 +435,30 @@ const HTML = `<!doctype html>
   </style>
 </head>
 <body>
+  <div id="loginOverlay" class="login-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <form id="loginForm" class="login-dialog">
+      <div class="login-top">
+        <div class="mark">G</div>
+        <div>
+          <h2 id="loginTitle" class="login-title">登录控制台</h2>
+          <p class="login-sub">输入下游 API Key 后进入管理页。密钥只保存在当前浏览器，不会写入 Worker。</p>
+        </div>
+      </div>
+      <label class="field">
+        <span class="label">API Key</span>
+        <input id="loginKeyInput" class="input" type="password" placeholder="sk-..." autocomplete="current-password" />
+      </label>
+      <div class="login-actions">
+        <label class="remember">
+          <input id="rememberLoginInput" type="checkbox" checked />
+          记住到此浏览器
+        </label>
+        <button id="loginBtn" class="btn primary" type="submit">登录</button>
+      </div>
+      <div id="loginError" class="login-error" aria-live="polite"></div>
+    </form>
+  </div>
+
   <main class="app">
     <aside class="rail" aria-label="管理侧栏">
       <div class="brand">
@@ -419,15 +482,15 @@ const HTML = `<!doctype html>
       </section>
 
       <section class="section">
-        <h2 class="section-title">访问密钥</h2>
+        <h2 class="section-title">登录状态</h2>
         <label class="field">
           <span class="label">API Key</span>
           <input id="apiKeyInput" class="input" type="password" placeholder="sk-..." autocomplete="off" />
         </label>
         <div class="row">
-          <button id="saveKeyBtn" class="btn primary small" type="button">保存</button>
+          <button id="saveKeyBtn" class="btn primary small" type="button">登录/更新</button>
           <button id="toggleKeyBtn" class="btn small" type="button">显示</button>
-          <button id="clearKeyBtn" class="btn ghost small" type="button">清除</button>
+          <button id="clearKeyBtn" class="btn ghost small" type="button">退出</button>
         </div>
         <div style="margin-top:10px"><span id="keyChip" class="chip warn">未保存</span></div>
       </section>
@@ -538,9 +601,10 @@ const HTML = `<!doctype html>
   <script>
     (function () {
       var STORAGE_KEY = "grok2api_admin_key";
+      var SESSION_KEY = "grok2api_admin_session_key";
       var REASONING_OPTIONS = ["none", "minimal", "low", "medium", "high", "xhigh"];
       var state = {
-        key: localStorage.getItem(STORAGE_KEY) || "",
+        key: localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(SESSION_KEY) || "",
         health: null,
         models: [],
         selectedModel: "",
@@ -551,16 +615,18 @@ const HTML = `<!doctype html>
         kvConfigured: false,
         messages: [],
         busy: false,
-        aborter: null
+        aborter: null,
+        loginOpen: false
       };
 
       function qs(id) { return document.getElementById(id); }
       function text(id, value) { qs(id).textContent = value == null ? "" : String(value); }
-      function headers() {
+      function headersForKey(key) {
         var h = { "Content-Type": "application/json" };
-        if (state.key) h.Authorization = "Bearer " + state.key;
+        if (key) h.Authorization = "Bearer " + key;
         return h;
       }
+      function headers() { return headersForKey(state.key); }
       function pretty(value) { return JSON.stringify(value, null, 2); }
       function sumTokenCounts(counts, field) {
         counts = counts || {};
@@ -601,12 +667,68 @@ const HTML = `<!doctype html>
         clearTimeout(toast._timer);
         toast._timer = setTimeout(function () { el.classList.remove("show"); }, 2600);
       }
+      function syncKeyInputs() {
+        if (qs("apiKeyInput")) qs("apiKeyInput").value = state.key;
+        if (qs("loginKeyInput")) qs("loginKeyInput").value = state.key;
+      }
+      function storeKey(key, remember) {
+        state.key = String(key || "").trim();
+        if (state.key) {
+          if (remember) {
+            localStorage.setItem(STORAGE_KEY, state.key);
+            sessionStorage.removeItem(SESSION_KEY);
+          } else {
+            sessionStorage.setItem(SESSION_KEY, state.key);
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          sessionStorage.removeItem(SESSION_KEY);
+        }
+        syncKeyInputs();
+      }
+      function showLogin(message) {
+        var overlay = qs("loginOverlay");
+        if (!overlay) return;
+        state.loginOpen = true;
+        overlay.classList.remove("hidden");
+        qs("loginError").textContent = message || "";
+        document.querySelector(".app").classList.add("locked");
+        syncKeyInputs();
+        setTimeout(function () {
+          var input = qs("loginKeyInput");
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        }, 30);
+      }
+      function hideLogin() {
+        var overlay = qs("loginOverlay");
+        if (!overlay) return;
+        state.loginOpen = false;
+        overlay.classList.add("hidden");
+        qs("loginError").textContent = "";
+        document.querySelector(".app").classList.remove("locked");
+      }
+      function isAuthError(err) {
+        return err && (err.status === 401 || err.status === 403);
+      }
+      function handleAuthError(err) {
+        if (!isAuthError(err)) return false;
+        storeKey("", true);
+        renderStatus();
+        renderModels();
+        renderTokens();
+        showLogin(err.message || "API Key 无效，请重新登录");
+        return true;
+      }
       function authNeeded() {
         return state.health && state.health.auth_required && !state.key;
       }
       function requireKey() {
         if (authNeeded()) {
-          toast("请先保存 API Key");
+          showLogin("请先登录后继续操作");
           return false;
         }
         return true;
@@ -640,6 +762,7 @@ const HTML = `<!doctype html>
         if (authNeeded()) {
           state.models = [];
           renderModels();
+          showLogin("请输入 API Key 登录控制台");
           return;
         }
         try {
@@ -647,7 +770,7 @@ const HTML = `<!doctype html>
           state.models = Array.isArray(data.data) ? data.data : [];
         } catch (err) {
           state.models = [];
-          toast("模型加载失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("模型加载失败：" + (err.message || String(err)));
         }
         renderModels();
       }
@@ -657,6 +780,7 @@ const HTML = `<!doctype html>
           state.tokens = [];
           state.counts = null;
           renderTokens();
+          showLogin("请输入 API Key 登录控制台");
           return;
         }
         try {
@@ -667,7 +791,7 @@ const HTML = `<!doctype html>
         } catch (err) {
           state.tokens = [];
           state.counts = null;
-          toast("Token 池加载失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("Token 池加载失败：" + (err.message || String(err)));
         }
         renderTokens();
         renderStatus();
@@ -688,8 +812,13 @@ const HTML = `<!doctype html>
         var egress = features.vpc_egress && features.vpc_egress_binding ? "VPC" : "Direct";
         text("egressChip", "egress " + egress);
         var keyChip = qs("keyChip");
-        keyChip.className = "chip " + (state.key ? "ok" : "warn");
-        keyChip.textContent = state.key ? "已保存到浏览器" : "未保存";
+        if (h.auth_required === false) {
+          keyChip.className = "chip ok";
+          keyChip.textContent = state.key ? "已保存（可选）" : "未启用鉴权";
+        } else {
+          keyChip.className = "chip " + (state.key ? "ok" : "warn");
+          keyChip.textContent = state.key ? "已登录" : "未登录";
+        }
       }
 
       function renderModels() {
@@ -931,14 +1060,18 @@ const HTML = `<!doctype html>
           try { data = raw ? JSON.parse(raw) : null; } catch (_) { data = { raw: raw }; }
           if (!res.ok) {
             var message = data && data.error && data.error.message ? data.error.message : "HTTP " + res.status;
-            throw new Error(message);
+            var err = new Error(message);
+            err.status = res.status;
+            err.data = data;
+            throw err;
           }
           assistant.content = extractReply(data) || "(empty response)";
           assistant.loading = false;
           text("composerHint", "HTTP " + res.status + " · " + (Date.now() - started) + "ms · " + model + " · reasoning " + effort);
         } catch (err) {
           assistant.loading = false;
-          assistant.content = "请求失败：" + (err.message || String(err));
+          if (handleAuthError(err)) assistant.content = "登录失效，请重新登录后再试。";
+          else assistant.content = "请求失败：" + (err.message || String(err));
         } finally {
           state.busy = false;
           state.aborter = null;
@@ -1009,7 +1142,7 @@ const HTML = `<!doctype html>
           await loadTokens();
           await loadModels();
         } catch (err) {
-          toast("增加失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("增加失败：" + (err.message || String(err)));
         } finally {
           setTokenWriteBusy(false);
         }
@@ -1049,7 +1182,7 @@ const HTML = `<!doctype html>
           await loadTokens();
           await loadModels();
         } catch (err) {
-          toast("导入失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("导入失败：" + (err.message || String(err)));
         } finally {
           input.value = "";
           qs("tokenImportHint").textContent = "支持 txt/log/csv，多行每行一个 Token";
@@ -1069,7 +1202,7 @@ const HTML = `<!doctype html>
           await loadTokens();
           await loadModels();
         } catch (err) {
-          toast("操作失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("操作失败：" + (err.message || String(err)));
         }
       }
 
@@ -1085,24 +1218,58 @@ const HTML = `<!doctype html>
           await loadTokens();
           await loadModels();
         } catch (err) {
-          toast("删除失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("删除失败：" + (err.message || String(err)));
         }
       }
 
-      function saveKey() {
-        state.key = qs("apiKeyInput").value.trim();
-        if (state.key) localStorage.setItem(STORAGE_KEY, state.key);
-        else localStorage.removeItem(STORAGE_KEY);
+      async function loginWithKey(key, remember) {
+        key = String(key || "").trim();
+        if (state.health && state.health.auth_required && !key) {
+          throw new Error("请输入 API Key");
+        }
+        if (key) {
+          await fetchJson("/v1/models?ts=" + Date.now(), { headers: headersForKey(key) });
+        }
+        storeKey(key, remember !== false);
+        hideLogin();
         renderStatus();
-        refreshAll();
+        await refreshAll();
+      }
+
+      async function submitLogin(event) {
+        if (event) event.preventDefault();
+        var btn = qs("loginBtn");
+        btn.disabled = true;
+        qs("loginError").textContent = "";
+        try {
+          await loginWithKey(qs("loginKeyInput").value, qs("rememberLoginInput").checked);
+          toast("登录成功");
+        } catch (err) {
+          qs("loginError").textContent = err.message || String(err);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function saveKey() {
+        var btn = qs("saveKeyBtn");
+        btn.disabled = true;
+        try {
+          await loginWithKey(qs("apiKeyInput").value, true);
+          toast(state.key ? "已登录" : "已保存");
+        } catch (err) {
+          showLogin(err.message || String(err));
+          qs("loginKeyInput").value = qs("apiKeyInput").value;
+        } finally {
+          btn.disabled = false;
+        }
       }
       function clearKey() {
-        state.key = "";
-        qs("apiKeyInput").value = "";
-        localStorage.removeItem(STORAGE_KEY);
+        storeKey("", true);
         renderStatus();
         renderModels();
         renderTokens();
+        if (state.health && state.health.auth_required) showLogin("已退出，请重新登录");
       }
       function copyCurl() {
         var prompt = qs("promptInput").value.trim() || "请只回复 ok";
@@ -1124,11 +1291,19 @@ const HTML = `<!doctype html>
       }
       async function refreshAll() {
         await loadHealth();
+        if (authNeeded()) {
+          showLogin("请输入 API Key 登录控制台");
+          renderModels();
+          renderTokens();
+          return;
+        }
+        if (state.health && state.health.auth_required === false) hideLogin();
         await Promise.all([loadModels(), loadTokens()]);
       }
 
       function bind() {
-        qs("apiKeyInput").value = state.key;
+        syncKeyInputs();
+        qs("loginForm").addEventListener("submit", submitLogin);
         qs("saveKeyBtn").addEventListener("click", saveKey);
         qs("clearKeyBtn").addEventListener("click", clearKey);
         qs("toggleKeyBtn").addEventListener("click", function () {
