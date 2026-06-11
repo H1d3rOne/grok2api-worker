@@ -28,6 +28,7 @@ cp .dev.vars.example .dev.vars
 编辑 `.dev.vars`：
 
 ```ini
+ADMIN_PASSWORD=admin-change-me
 API_KEY=change-me
 GROK_TOKENS=your-sso-token
 ```
@@ -67,6 +68,7 @@ npm run setup:kv
 3. 设置密钥：
 
 ```bash
+npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put API_KEY
 npx wrangler secret put GROK_TOKENS
 ```
@@ -81,6 +83,7 @@ npm run deploy
 
 敏感信息不要写进 `wrangler.toml`，请用 `wrangler secret put`。
 
+- `ADMIN_PASSWORD`：管理页登录密码；不设置时会退回使用 `API_KEY`
 - `API_KEY`：下游调用本项目 API 的 Bearer key
 - `GROK_TOKENS`：Grok SSO token，支持多个，逗号或换行分隔
 - `GROK_BASIC_TOKENS` / `GROK_SUPER_TOKENS` / `GROK_HEAVY_TOKENS`：分层 Token 池
@@ -128,6 +131,6 @@ curl "$BASE/v1/messages" \
 
 - `.dev.vars`
 - `.wrangler/`
-- 真实 API key
+- 真实管理密码 / API key
 - 真实 SSO token
 - Cloudflare account id / KV namespace id

@@ -3,6 +3,7 @@ export interface Env {
   TOKEN_STORE?: KVNamespace;
 
   API_KEY?: string;
+  ADMIN_PASSWORD?: string;
   GROK_TOKENS?: string;
   GROK_SSO_TOKENS?: string;
   GROK_BASIC_TOKENS?: string;

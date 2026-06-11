@@ -441,12 +441,12 @@ const HTML = `<!doctype html>
         <div class="mark">G</div>
         <div>
           <h2 id="loginTitle" class="login-title">登录控制台</h2>
-          <p class="login-sub">输入下游 API Key 后进入管理页。密钥只保存在当前浏览器，不会写入 Worker。</p>
+          <p class="login-sub">输入管理密码后进入控制台。密码只保存在当前浏览器，不会写入 Worker。</p>
         </div>
       </div>
       <label class="field">
-        <span class="label">API Key</span>
-        <input id="loginKeyInput" class="input" type="password" placeholder="sk-..." autocomplete="current-password" />
+        <span class="label">管理密码</span>
+        <input id="loginKeyInput" class="input" type="password" placeholder="输入管理密码" autocomplete="current-password" />
       </label>
       <div class="login-actions">
         <label class="remember">
@@ -484,8 +484,8 @@ const HTML = `<!doctype html>
       <section class="section">
         <h2 class="section-title">登录状态</h2>
         <label class="field">
-          <span class="label">API Key</span>
-          <input id="apiKeyInput" class="input" type="password" placeholder="sk-..." autocomplete="off" />
+          <span class="label">管理密码</span>
+          <input id="apiKeyInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
         </label>
         <div class="row">
           <button id="saveKeyBtn" class="btn primary small" type="button">登录/更新</button>
@@ -600,8 +600,8 @@ const HTML = `<!doctype html>
 
   <script>
     (function () {
-      var STORAGE_KEY = "grok2api_admin_key";
-      var SESSION_KEY = "grok2api_admin_session_key";
+      var STORAGE_KEY = "grok2api_admin_password";
+      var SESSION_KEY = "grok2api_admin_session_password";
       var REASONING_OPTIONS = ["none", "minimal", "low", "medium", "high", "xhigh"];
       var state = {
         key: localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(SESSION_KEY) || "",
@@ -720,15 +720,19 @@ const HTML = `<!doctype html>
         renderStatus();
         renderModels();
         renderTokens();
-        showLogin(err.message || "API Key 无效，请重新登录");
+        showLogin(err.message || "管理密码无效，请重新登录");
         return true;
       }
+      function isAdminAuthRequired() {
+        var h = state.health || {};
+        return h.admin_auth_required !== undefined ? !!h.admin_auth_required : !!h.auth_required;
+      }
       function authNeeded() {
-        return state.health && state.health.auth_required && !state.key;
+        return state.health && isAdminAuthRequired() && !state.key;
       }
       function requireKey() {
         if (authNeeded()) {
-          showLogin("请先登录后继续操作");
+          showLogin("请先输入管理密码");
           return false;
         }
         return true;
@@ -762,11 +766,11 @@ const HTML = `<!doctype html>
         if (authNeeded()) {
           state.models = [];
           renderModels();
-          showLogin("请输入 API Key 登录控制台");
+          showLogin("请输入管理密码登录控制台");
           return;
         }
         try {
-          var data = await fetchJson("/v1/models?ts=" + Date.now(), { headers: headers() });
+          var data = await fetchJson("/admin/api/models?ts=" + Date.now(), { headers: headers() });
           state.models = Array.isArray(data.data) ? data.data : [];
         } catch (err) {
           state.models = [];
@@ -780,7 +784,7 @@ const HTML = `<!doctype html>
           state.tokens = [];
           state.counts = null;
           renderTokens();
-          showLogin("请输入 API Key 登录控制台");
+          showLogin("请输入管理密码登录控制台");
           return;
         }
         try {
@@ -812,7 +816,7 @@ const HTML = `<!doctype html>
         var egress = features.vpc_egress && features.vpc_egress_binding ? "VPC" : "Direct";
         text("egressChip", "egress " + egress);
         var keyChip = qs("keyChip");
-        if (h.auth_required === false) {
+        if (!isAdminAuthRequired()) {
           keyChip.className = "chip ok";
           keyChip.textContent = state.key ? "已保存（可选）" : "未启用鉴权";
         } else {
@@ -828,7 +832,7 @@ const HTML = `<!doctype html>
         if (!state.models.length) {
           var empty = document.createElement("option");
           empty.value = "";
-          empty.textContent = authNeeded() ? "请先保存 API Key" : "暂无可用模型";
+          empty.textContent = authNeeded() ? "请先输入管理密码" : "暂无可用模型";
           select.appendChild(empty);
           state.selectedModel = "";
         } else {
@@ -930,7 +934,7 @@ const HTML = `<!doctype html>
         var list = qs("tokenList");
         list.textContent = "";
         if (authNeeded()) {
-          list.innerHTML = '<div class="empty-list">请先保存 API Key 后加载 Token 池。</div>';
+          list.innerHTML = '<div class="empty-list">请先输入管理密码后加载 Token 池。</div>';
           return;
         }
         if (!state.tokens.length) {
@@ -1049,7 +1053,7 @@ const HTML = `<!doctype html>
         try {
           var payload = chatPayload(null, model, effort);
           var started = Date.now();
-          var res = await fetch("/v1/chat/completions", {
+          var res = await fetch("/admin/api/chat/completions", {
             method: "POST",
             headers: headers(),
             body: JSON.stringify(payload),
@@ -1224,11 +1228,11 @@ const HTML = `<!doctype html>
 
       async function loginWithKey(key, remember) {
         key = String(key || "").trim();
-        if (state.health && state.health.auth_required && !key) {
-          throw new Error("请输入 API Key");
+        if (state.health && isAdminAuthRequired() && !key) {
+          throw new Error("请输入管理密码");
         }
         if (key) {
-          await fetchJson("/v1/models?ts=" + Date.now(), { headers: headersForKey(key) });
+          await fetchJson("/admin/api/models?ts=" + Date.now(), { headers: headersForKey(key) });
         }
         storeKey(key, remember !== false);
         hideLogin();
@@ -1269,14 +1273,14 @@ const HTML = `<!doctype html>
         renderStatus();
         renderModels();
         renderTokens();
-        if (state.health && state.health.auth_required) showLogin("已退出，请重新登录");
+        if (state.health && isAdminAuthRequired()) showLogin("已退出，请重新登录");
       }
       function copyCurl() {
         var prompt = qs("promptInput").value.trim() || "请只回复 ok";
         var model = selectedModel() || "grok-4.3";
         var effort = selectedEffort();
         var body = { model: model, messages: [{ role: "user", content: prompt }], stream: false, reasoning_effort: effort };
-        var key = state.key || "YOUR_API_KEY";
+        var key = "YOUR_API_KEY";
         var nl = " " + String.fromCharCode(92, 10);
         var cmd = "curl " + JSON.stringify(location.origin + "/v1/chat/completions") + nl + "  -H " + JSON.stringify("Authorization: Bearer " + key) + nl + "  -H " + JSON.stringify("Content-Type: application/json") + nl + "  -d " + JSON.stringify(JSON.stringify(body));
         navigator.clipboard.writeText(cmd).then(function () { toast("curl 已复制"); }, function () { toast("复制失败"); });
@@ -1292,12 +1296,12 @@ const HTML = `<!doctype html>
       async function refreshAll() {
         await loadHealth();
         if (authNeeded()) {
-          showLogin("请输入 API Key 登录控制台");
+          showLogin("请输入管理密码登录控制台");
           renderModels();
           renderTokens();
           return;
         }
-        if (state.health && state.health.auth_required === false) hideLogin();
+        if (state.health && !isAdminAuthRequired()) hideLogin();
         await Promise.all([loadModels(), loadTokens()]);
       }
 

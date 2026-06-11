@@ -11,7 +11,7 @@ import { nowSeconds } from "./openai/format";
 import { adminPage } from "./admin";
 
 const ALLOWED_METHODS = "GET,POST,PATCH,DELETE,OPTIONS";
-const ALLOWED_HEADERS = "authorization,content-type,x-api-key,openai-beta,anthropic-version,anthropic-dangerous-direct-browser-access";
+const ALLOWED_HEADERS = "authorization,content-type,x-api-key,x-admin-key,openai-beta,anthropic-version,anthropic-dangerous-direct-browser-access";
 const EXPOSE_HEADERS = "content-type,request-id,x-request-id";
 const encoder = new TextEncoder();
 
@@ -38,9 +38,14 @@ async function route(request: Request, env: Env, path: string): Promise<Response
   if ((path === "/admin" || path === "/ui") && request.method === "GET") return adminPage();
   if (path === "/health" && request.method === "GET") return healthResponse(env);
 
-  if (path.startsWith("/v1/") || path.startsWith("/admin/api/")) {
+  if (path.startsWith("/admin/api/")) {
+    authenticateAdmin(request, env);
+  } else if (path.startsWith("/v1/")) {
     authenticate(request, env);
   }
+
+  if (path === "/admin/api/models" && request.method === "GET") return listModelsResponse(env);
+  if (path === "/admin/api/chat/completions" && request.method === "POST") return handleChatCompletions(request, env);
 
   if (path === "/admin/api/tokens" && request.method === "GET") return adminTokensResponse(env);
   if (path === "/admin/api/tokens" && request.method === "POST") return adminAddToken(request, env);
@@ -103,6 +108,7 @@ function rootResponse(env: Env): Response {
       "POST /v1/images/generations",
     ],
     auth_required: parseApiKeys(env.API_KEY).length > 0,
+    admin_auth_required: parseAdminPasswords(env).length > 0,
   });
 }
 
@@ -115,6 +121,7 @@ async function healthResponse(env: Env): Promise<Response> {
     object: "health",
     time: nowSeconds(),
     auth_required: parseApiKeys(env.API_KEY).length > 0,
+    admin_auth_required: parseAdminPasswords(env).length > 0,
     available_models: models.length,
     token_pools: {
       generic: counts.generic.enabled,
@@ -227,6 +234,33 @@ async function readJsonObject(request: Request): Promise<Record<string, unknown>
   return body as Record<string, unknown>;
 }
 
+function authenticateAdmin(request: Request, env: Env): void {
+  const keys = parseAdminPasswords(env);
+  if (!keys.length) return;
+
+  const token = extractBearer(request.headers.get("authorization")) || request.headers.get("x-admin-key") || request.headers.get("x-api-key") || "";
+  if (!token) {
+    throw new ApiError("Missing admin password.", {
+      status: 401,
+      type: "authentication_error",
+      code: "missing_admin_password",
+    });
+  }
+
+  if (!keys.some((key) => timingSafeEqual(token, key))) {
+    throw new ApiError("Invalid admin password.", {
+      status: 403,
+      type: "authentication_error",
+      code: "invalid_admin_password",
+    });
+  }
+}
+
+function parseAdminPasswords(env: Env): string[] {
+  const explicit = parseApiKeys(env.ADMIN_PASSWORD);
+  return explicit.length ? explicit : parseApiKeys(env.API_KEY);
+}
+
 function authenticate(request: Request, env: Env): void {
   const keys = parseApiKeys(env.API_KEY);
   if (!keys.length) return;
@@ -296,6 +330,8 @@ function normalizePath(pathname: string): string {
 
 function allowedMethodsFor(path: string): string | null {
   if (path === "/" || path === "/admin" || path === "/ui" || path === "/health" || path === "/v1/models" || path.startsWith("/v1/models/")) return "GET,OPTIONS";
+  if (path === "/admin/api/models") return "GET,OPTIONS";
+  if (path === "/admin/api/chat/completions") return "POST,OPTIONS";
   if (path === "/admin/api/tokens") return "GET,POST,OPTIONS";
   if (path.startsWith("/admin/api/tokens/")) return "PATCH,DELETE,OPTIONS";
   if (

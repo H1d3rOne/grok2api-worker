@@ -4,6 +4,7 @@ compatibility_date = "2025-01-01"
 
 # Put secrets with:
 #   npx wrangler secret put GROK_TOKENS
+#   npx wrangler secret put ADMIN_PASSWORD
 #   npx wrangler secret put API_KEY
 #   npx wrangler secret put CF_CLEARANCE     # optional
 #   npx wrangler secret put CF_COOKIES       # optional
