@@ -42,3 +42,6 @@ ENABLE_APP_CHAT_MODELS=true
 # Cloudflare Gateway / Workers VPC 出站。普通本地 dev 保持 false。
 # 云端启用还需要 wrangler.toml 配置 [[vpc_networks]] binding = "EGRESS"。
 USE_VPC_EGRESS=false
+
+# 是否暴露注册表中所有已启用模型；设为 true 可保持与原项目模型列表一致。
+WORKER_EXPOSE_ALL_MODELS=true

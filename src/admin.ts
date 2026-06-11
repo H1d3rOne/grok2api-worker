@@ -60,7 +60,7 @@ const HTML = `<!doctype html>
       min-height: 0;
       margin: 10px auto;
       display: grid;
-      grid-template-columns: 276px minmax(0, 1fr) 372px;
+      grid-template-columns: 276px minmax(0, 1fr) 390px;
       gap: 10px;
       animation: enter .45s ease both;
     }
@@ -313,48 +313,68 @@ const HTML = `<!doctype html>
     }
     .hint { color: var(--soft); font-size: 12px; }
 
-    .tokens-head { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
-    .tokens-title { margin: 0; font-size: 18px; letter-spacing: -.025em; }
-    .tokens-sub { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .tokens-head { padding: 10px 10px 8px; border-bottom: 1px solid var(--line); }
+    .tokens-title { margin: 0; font-size: 17px; letter-spacing: -.025em; }
+    .tokens-sub { margin: 3px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.3; }
     .mini-title { margin: 0; color: var(--text); font-size: 13px; font-weight: 820; letter-spacing: -.01em; }
-    .api-key-box { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    .api-key-box {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 5px;
+      max-height: 156px;
+      overflow: auto;
+      scrollbar-gutter: stable;
+    }
+    .compact-form { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr) auto; gap: 6px; align-items: center; }
+    .compact-form .input { height: 30px; border-radius: 12px; padding: 0 9px; font-size: 12px; }
+    .compact-check { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
     .key-list {
-      max-height: 148px;
+      max-height: 46px;
       overflow: auto;
       display: grid;
-      gap: 6px;
-      margin-top: 8px;
+      gap: 3px;
       padding-right: 2px;
+      scrollbar-gutter: stable;
     }
     .key-card {
+      min-height: 28px;
       border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(255,255,255,.038);
-      padding: 7px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.034);
+      padding: 3px 4px;
       display: grid;
-      gap: 6px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 5px;
+      align-items: center;
     }
-    .key-card .row { gap: 6px; }
-    .key-label { min-width: 0; font-weight: 760; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .key-card .chip { min-height: 21px; padding: 0 7px; font-size: 11px; }
-    .key-card .btn.small { min-height: 26px; padding: 0 8px; }
+    .key-card .row { gap: 4px; flex-wrap: nowrap; }
+    .key-main-line { min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+    .key-label { min-width: 0; max-width: 76px; font-weight: 760; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .key-card .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .key-main-line .mono { flex: 1 1 auto; min-width: 46px; color: var(--muted); }
+    .key-card .chip { min-height: 19px; padding: 0 6px; font-size: 10px; }
+    .key-card .btn.small { min-height: 23px; padding: 0 7px; font-size: 11px; }
     .generated-key {
-      margin-top: 8px;
+      margin-top: 2px;
       border: 1px solid rgba(115,247,198,.28);
-      border-radius: 14px;
+      border-radius: 12px;
       background: rgba(115,247,198,.08);
-      padding: 8px;
+      padding: 6px;
       display: grid;
-      gap: 6px;
+      gap: 5px;
+      font-size: 11px;
     }
     .hidden { display: none !important; }
-    .add-box { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-    #tokenValueInput { min-height: 58px; max-height: 112px; }
+    .add-box { padding: 7px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 5px; }
+    .add-box .field { margin-bottom: 0; }
+    .add-box .input, .add-box .select { height: 30px; border-radius: 12px; font-size: 12px; }
+    #tokenValueInput { min-height: 42px; max-height: 72px; border-radius: 14px; font-size: 12px; padding-top: 8px; padding-bottom: 8px; }
     .import-strip {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin: 7px 0 9px;
+      gap: 6px;
+      margin: 0;
       min-width: 0;
     }
     .import-strip .hint {
@@ -366,24 +386,24 @@ const HTML = `<!doctype html>
     .token-list {
       min-height: 0;
       overflow: auto;
-      padding: 8px;
+      padding: 7px;
       scrollbar-gutter: stable;
     }
     .token-card {
       border: 1px solid var(--line);
-      border-radius: 16px;
-      background: rgba(255,255,255,.042);
-      padding: 9px;
-      margin-bottom: 7px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.038);
+      padding: 6px;
+      margin-bottom: 5px;
       transition: transform .16s ease, border-color .16s ease, background .16s ease;
     }
-    .token-card:hover { transform: translateY(-1px); border-color: rgba(143,180,255,.26); background: rgba(255,255,255,.058); }
-    .token-main { display: grid; gap: 2px; min-width: 0; }
-    .token-label { font-weight: 760; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 11px; }
-    .token-meta { color: var(--soft); font-size: 11px; display: flex; gap: 5px; flex-wrap: wrap; }
-    .token-card .chip { min-height: 22px; padding: 0 7px; font-size: 11px; }
-    .token-card .btn.small { min-height: 28px; padding: 0 9px; }
+    .token-card:hover { transform: translateY(-1px); border-color: rgba(143,180,255,.26); background: rgba(255,255,255,.055); }
+    .token-main { display: grid; gap: 1px; min-width: 0; }
+    .token-label { font-weight: 760; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 10.5px; }
+    .token-meta { color: var(--soft); font-size: 10.5px; display: flex; gap: 4px; flex-wrap: wrap; }
+    .token-card .chip { min-height: 20px; padding: 0 6px; font-size: 10px; }
+    .token-card .btn.small { min-height: 24px; padding: 0 7px; font-size: 11px; }
     .token-error { margin-top: 6px; color: #ffd7dc; background: rgba(255,127,143,.08); border: 1px solid rgba(255,127,143,.16); border-radius: 12px; padding: 6px 8px; font-size: 11px; line-height: 1.35; }
     .empty-list { color: var(--muted); padding: 22px 10px; text-align: center; line-height: 1.55; }
 
@@ -588,7 +608,7 @@ const HTML = `<!doctype html>
         <div class="row between">
           <div>
             <h2 class="tokens-title">Token 池</h2>
-            <p class="tokens-sub">新增的 Token 存在 Worker KV；调用时按模型层级轮询。401/403 会记录错误、自动禁用并切换到下一个可用 Token。</p>
+            <p class="tokens-sub">KV 持久化；按模型层级轮询，401/403 自动禁用并切换。</p>
           </div>
           <div class="row" style="justify-content:flex-end">
             <span id="kvChip" class="chip warn">KV --</span>
@@ -600,27 +620,19 @@ const HTML = `<!doctype html>
       <section class="api-key-box" aria-label="下游 API Key 管理">
         <div class="row between">
           <h3 class="mini-title">下游 API Keys</h3>
-          <button id="reloadApiKeysBtn" class="btn small" type="button">刷新</button>
+          <div class="row" style="gap:5px">
+            <label class="compact-check"><input id="apiKeyEnabledInput" type="checkbox" checked />启用</label>
+            <button id="reloadApiKeysBtn" class="btn small" type="button">刷新</button>
+          </div>
         </div>
-        <p class="tokens-sub">供客户端调用 <span class="mono">/v1/*</span> 使用；Cloudflare Secret <span class="mono">API_KEY</span> 只读，新增 Key 写入 KV。</p>
-        <label class="field" style="margin-top:8px">
-          <span class="label">标签</span>
-          <input id="apiKeyLabelInput" class="input" placeholder="例如 client-a" maxlength="80" />
-        </label>
-        <label class="field">
-          <span class="label">API Key（留空自动生成）</span>
-          <input id="apiKeyValueInput" class="input" type="password" placeholder="sk-... 或留空生成" autocomplete="off" />
-        </label>
-        <div class="row between">
-          <label class="row" style="min-height:34px; color:var(--muted); font-size:12px">
-            <input id="apiKeyEnabledInput" type="checkbox" checked /> 启用
-          </label>
-          <button id="addApiKeyBtn" class="btn primary small" type="button">添加/生成</button>
+        <div class="compact-form">
+          <input id="apiKeyLabelInput" class="input" placeholder="标签" maxlength="80" />
+          <input id="apiKeyValueInput" class="input" type="password" placeholder="API Key，留空自动生成" autocomplete="off" />
+          <button id="addApiKeyBtn" class="btn primary small" type="button">添加</button>
         </div>
         <div id="generatedApiKeyBox" class="generated-key hidden">
-          <div class="hint">新生成的 API Key 只显示这一次，请立即复制保存：</div>
           <div class="row between">
-            <code id="generatedApiKeyText" class="mono" style="word-break:break-all"></code>
+            <code id="generatedApiKeyText" class="mono" style="word-break:break-all; min-width:0"></code>
             <button id="copyGeneratedApiKeyBtn" class="btn small" type="button">复制</button>
           </div>
         </div>
@@ -628,34 +640,25 @@ const HTML = `<!doctype html>
       </section>
 
       <section class="add-box">
-        <label class="field">
-          <span class="label">Token 标签</span>
-          <input id="tokenLabelInput" class="input" placeholder="例如 main console" maxlength="80" />
-        </label>
-        <div class="row" style="align-items:end">
-          <label class="field" style="flex:1; margin-bottom:0">
-            <span class="label">池</span>
-            <select id="tokenPoolSelect" class="select">
-              <option value="generic">generic fallback</option>
-              <option value="basic">basic</option>
-              <option value="super">super</option>
-              <option value="heavy">heavy</option>
-            </select>
-          </label>
-          <label class="row" style="min-height:42px; color:var(--muted); font-size:12px">
-            <input id="tokenEnabledInput" type="checkbox" checked /> 启用
-          </label>
+        <div class="compact-form" style="grid-template-columns:minmax(0,1fr) 104px auto">
+          <input id="tokenLabelInput" class="input" placeholder="Token 标签" maxlength="80" />
+          <select id="tokenPoolSelect" class="select">
+            <option value="generic">generic</option>
+            <option value="basic">basic</option>
+            <option value="super">super</option>
+            <option value="heavy">heavy</option>
+          </select>
+          <label class="compact-check"><input id="tokenEnabledInput" type="checkbox" checked />启用</label>
         </div>
-        <label class="field" style="margin-top:12px">
-          <span class="label">SSO Token</span>
-          <textarea id="tokenValueInput" class="textarea" placeholder="粘贴一个或多个 sso token；每行一个，保存后列表只显示脱敏值"></textarea>
-        </label>
-        <div class="import-strip">
-          <button id="importTokenFileBtn" class="btn small" type="button">导入文件</button>
-          <input id="tokenFileInput" type="file" accept=".txt,.text,.log,.csv,text/plain,text/*" multiple hidden />
-          <span id="tokenImportHint" class="hint">支持 txt/log/csv，多行每行一个 Token</span>
+        <textarea id="tokenValueInput" class="textarea" placeholder="粘贴一个或多个 sso token；每行一个，保存后列表只显示脱敏值"></textarea>
+        <div class="row between" style="gap:6px">
+          <div class="import-strip" style="flex:1">
+            <button id="importTokenFileBtn" class="btn small" type="button">导入文件</button>
+            <input id="tokenFileInput" type="file" accept=".txt,.text,.log,.csv,text/plain,text/*" multiple hidden />
+            <span id="tokenImportHint" class="hint">txt/log/csv，每行一个 Token</span>
+          </div>
+          <button id="addTokenBtn" class="btn primary small" type="button">添加 Token</button>
         </div>
-        <button id="addTokenBtn" class="btn primary" type="button" style="width:100%">添加粘贴 Token</button>
       </section>
 
       <div id="tokenList" class="token-list"></div>
@@ -1037,11 +1040,11 @@ const HTML = `<!doctype html>
         var list = qs("apiKeyList");
         list.textContent = "";
         if (authNeeded()) {
-          list.innerHTML = '<div class="empty-list">请先输入管理密码后管理下游 API Key。</div>';
+          list.innerHTML = '<div class="empty-list" style="padding:8px">请先登录。</div>';
           return;
         }
         if (!state.apiKeys.length) {
-          list.innerHTML = '<div class="empty-list">暂无 API Key。Cloudflare Secret API_KEY 会在这里只读显示；也可以添加写入 KV 的 managed key。</div>';
+          list.innerHTML = '<div class="empty-list" style="padding:8px">暂无 API Key。</div>';
           return;
         }
         state.apiKeys.slice().sort(function (a, b) {
@@ -1050,19 +1053,24 @@ const HTML = `<!doctype html>
           var card = document.createElement("div");
           card.className = "key-card";
 
-          var top = document.createElement("div");
-          top.className = "row between";
           var main = document.createElement("div");
-          main.style.minWidth = "0";
-          var label = document.createElement("div");
+          main.className = "key-main-line";
+          var label = document.createElement("span");
           label.className = "key-label";
           label.textContent = key.label || "API key";
-          var masked = document.createElement("div");
+          var masked = document.createElement("span");
           masked.className = "mono";
-          masked.style.color = "var(--muted)";
           masked.textContent = key.masked || "sk-…";
+          var status = document.createElement("span");
+          status.className = "chip " + (key.enabled ? "ok" : "warn");
+          status.textContent = key.enabled ? "on" : "off";
+          var source = document.createElement("span");
+          source.className = "chip plain";
+          source.textContent = key.readonly ? "secret" : "KV";
           main.appendChild(label);
           main.appendChild(masked);
+          main.appendChild(status);
+          main.appendChild(source);
 
           var actions = document.createElement("div");
           actions.className = "row";
@@ -1075,21 +1083,18 @@ const HTML = `<!doctype html>
             var del = document.createElement("button");
             del.className = "btn small danger";
             del.type = "button";
-            del.textContent = "删除";
+            del.textContent = "删";
             del.addEventListener("click", function () { deleteApiKey(key); });
             actions.appendChild(enable);
             actions.appendChild(del);
+          } else {
+            var ro = document.createElement("span");
+            ro.className = "chip plain";
+            ro.textContent = "只读";
+            actions.appendChild(ro);
           }
-          top.appendChild(main);
-          top.appendChild(actions);
-          card.appendChild(top);
-
-          var meta = document.createElement("div");
-          meta.className = "token-meta";
-          meta.innerHTML = '<span class="chip ' + (key.enabled ? 'ok' : 'warn') + '">' + (key.enabled ? 'enabled' : 'disabled') + '</span>' +
-            '<span class="chip plain">' + key.source + '</span>' +
-            (key.readonly ? '<span class="chip plain">read-only</span>' : '<span class="chip plain">KV</span>');
-          card.appendChild(meta);
+          card.appendChild(main);
+          card.appendChild(actions);
           list.appendChild(card);
         });
       }
@@ -1142,7 +1147,7 @@ const HTML = `<!doctype html>
           var del = document.createElement("button");
           del.className = "btn small danger";
           del.type = "button";
-          del.textContent = "删除";
+          del.textContent = "删";
           del.addEventListener("click", function () { deleteToken(tok); });
           actions.appendChild(enable);
           actions.appendChild(del);
@@ -1153,7 +1158,7 @@ const HTML = `<!doctype html>
 
           var meta = document.createElement("div");
           meta.className = "token-meta";
-          meta.style.marginTop = "10px";
+          meta.style.marginTop = "5px";
           var status = tok.enabled ? "enabled" : "disabled";
           meta.innerHTML = '<span class="chip ' + (tok.enabled ? 'ok' : 'warn') + '">' + status + '</span>' +
             '<span class="chip plain">' + tok.pool + '</span>' +
