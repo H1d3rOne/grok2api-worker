@@ -1,0 +1,42 @@
+name = "grok2api-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Put secrets with:
+#   npx wrangler secret put GROK_TOKENS
+#   npx wrangler secret put API_KEY
+#   npx wrangler secret put CF_CLEARANCE     # optional
+#   npx wrangler secret put CF_COOKIES       # optional
+
+[vars]
+STREAM = "false"
+THINKING = "true"
+TEMPORARY = "true"
+MEMORY = "false"
+MAX_RETRIES = "0"
+RETRY_ON_CODES = "429,401,503"
+CHAT_TIMEOUT_SECONDS = "120"
+CONSOLE_WEB_SEARCH = "true"
+ENABLE_CONSOLE_MODELS = "true"
+USE_CONSOLE_UPSTREAM = "false"
+ENABLE_APP_CHAT_MODELS = "true"
+USE_VPC_EGRESS = "false"
+WORKER_EXPOSE_ALL_MODELS = "false"
+ENABLE_CORS = "true"
+ALLOWED_ORIGINS = "*"
+
+# Token pool persistence for /admin.
+# Before deploy, create a namespace and replace the id:
+#   npm run setup:kv
+# or manually:
+#   npx wrangler kv namespace create TOKEN_STORE
+[[kv_namespaces]]
+binding = "TOKEN_STORE"
+id = "REPLACE_WITH_TOKEN_STORE_KV_NAMESPACE_ID"
+
+# Optional Cloudflare Gateway / Workers VPC egress.
+# Enable USE_VPC_EGRESS=true only after configuring a VPC network binding.
+# [[vpc_networks]]
+# binding = "EGRESS"
+# network_id = "REPLACE_WITH_VPC_NETWORK_ID"
+# remote = true
