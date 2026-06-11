@@ -26,7 +26,7 @@ WORKER_EXPOSE_ALL_MODELS = "false"
 ENABLE_CORS = "true"
 ALLOWED_ORIGINS = "*"
 
-# Token pool persistence for /admin.
+# Admin persistence for managed downstream API Keys and Grok Token pool.
 # Before deploy, create a namespace and replace the id:
 #   npm run setup:kv
 # or manually:

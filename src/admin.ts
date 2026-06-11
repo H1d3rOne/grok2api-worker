@@ -82,7 +82,7 @@ const HTML = `<!doctype html>
     }
     .rail { border-radius: 30px; display: flex; flex-direction: column; overflow: auto; scrollbar-gutter: stable; }
     .chat { border-radius: 30px; display: grid; grid-template-rows: auto 1fr auto; }
-    .tokens { border-radius: 30px; display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+    .tokens { border-radius: 30px; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); }
 
     .brand {
       padding: 18px 18px 14px;
@@ -316,6 +316,38 @@ const HTML = `<!doctype html>
     .tokens-head { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
     .tokens-title { margin: 0; font-size: 18px; letter-spacing: -.025em; }
     .tokens-sub { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .mini-title { margin: 0; color: var(--text); font-size: 13px; font-weight: 820; letter-spacing: -.01em; }
+    .api-key-box { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    .key-list {
+      max-height: 148px;
+      overflow: auto;
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
+      padding-right: 2px;
+    }
+    .key-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.038);
+      padding: 7px;
+      display: grid;
+      gap: 6px;
+    }
+    .key-card .row { gap: 6px; }
+    .key-label { min-width: 0; font-weight: 760; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .key-card .chip { min-height: 21px; padding: 0 7px; font-size: 11px; }
+    .key-card .btn.small { min-height: 26px; padding: 0 8px; }
+    .generated-key {
+      margin-top: 8px;
+      border: 1px solid rgba(115,247,198,.28);
+      border-radius: 14px;
+      background: rgba(115,247,198,.08);
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
+    .hidden { display: none !important; }
     .add-box { padding: 10px 14px; border-bottom: 1px solid var(--line); }
     #tokenValueInput { min-height: 58px; max-height: 112px; }
     .import-strip {
@@ -485,7 +517,7 @@ const HTML = `<!doctype html>
         <h2 class="section-title">登录状态</h2>
         <label class="field">
           <span class="label">管理密码</span>
-          <input id="apiKeyInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
+          <input id="adminPasswordInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
         </label>
         <div class="row">
           <button id="saveKeyBtn" class="btn primary small" type="button">登录/更新</button>
@@ -529,6 +561,7 @@ const HTML = `<!doctype html>
             <option value="low">reasoning low</option>
             <option value="medium">reasoning medium</option>
             <option value="high">reasoning high</option>
+            <option value="xhigh">reasoning xhigh</option>
           </select>
           <button id="copyCurlBtn" class="btn small" type="button">复制 curl</button>
         </div>
@@ -557,9 +590,42 @@ const HTML = `<!doctype html>
             <h2 class="tokens-title">Token 池</h2>
             <p class="tokens-sub">新增的 Token 存在 Worker KV；调用时按模型层级轮询。401/403 会记录错误、自动禁用并切换到下一个可用 Token。</p>
           </div>
-          <button id="reloadTokensBtn" class="btn small" type="button">重载</button>
+          <div class="row" style="justify-content:flex-end">
+            <span id="kvChip" class="chip warn">KV --</span>
+            <button id="reloadTokensBtn" class="btn small" type="button">重载</button>
+          </div>
         </div>
       </header>
+
+      <section class="api-key-box" aria-label="下游 API Key 管理">
+        <div class="row between">
+          <h3 class="mini-title">下游 API Keys</h3>
+          <button id="reloadApiKeysBtn" class="btn small" type="button">刷新</button>
+        </div>
+        <p class="tokens-sub">供客户端调用 <span class="mono">/v1/*</span> 使用；Cloudflare Secret <span class="mono">API_KEY</span> 只读，新增 Key 写入 KV。</p>
+        <label class="field" style="margin-top:8px">
+          <span class="label">标签</span>
+          <input id="apiKeyLabelInput" class="input" placeholder="例如 client-a" maxlength="80" />
+        </label>
+        <label class="field">
+          <span class="label">API Key（留空自动生成）</span>
+          <input id="apiKeyValueInput" class="input" type="password" placeholder="sk-... 或留空生成" autocomplete="off" />
+        </label>
+        <div class="row between">
+          <label class="row" style="min-height:34px; color:var(--muted); font-size:12px">
+            <input id="apiKeyEnabledInput" type="checkbox" checked /> 启用
+          </label>
+          <button id="addApiKeyBtn" class="btn primary small" type="button">添加/生成</button>
+        </div>
+        <div id="generatedApiKeyBox" class="generated-key hidden">
+          <div class="hint">新生成的 API Key 只显示这一次，请立即复制保存：</div>
+          <div class="row between">
+            <code id="generatedApiKeyText" class="mono" style="word-break:break-all"></code>
+            <button id="copyGeneratedApiKeyBtn" class="btn small" type="button">复制</button>
+          </div>
+        </div>
+        <div id="apiKeyList" class="key-list"></div>
+      </section>
 
       <section class="add-box">
         <label class="field">
@@ -610,6 +676,10 @@ const HTML = `<!doctype html>
         selectedModel: "",
         selectedEffort: "",
         reasoningByModel: {},
+        apiKeys: [],
+        apiKeyCounts: null,
+        apiKeyKvConfigured: false,
+        generatedApiKey: "",
         tokens: [],
         counts: null,
         kvConfigured: false,
@@ -623,7 +693,7 @@ const HTML = `<!doctype html>
       function text(id, value) { qs(id).textContent = value == null ? "" : String(value); }
       function headersForKey(key) {
         var h = { "Content-Type": "application/json" };
-        if (key) h.Authorization = "Bearer " + key;
+        if (key) h["X-Admin-Key"] = key;
         return h;
       }
       function headers() { return headersForKey(state.key); }
@@ -668,7 +738,7 @@ const HTML = `<!doctype html>
         toast._timer = setTimeout(function () { el.classList.remove("show"); }, 2600);
       }
       function syncKeyInputs() {
-        if (qs("apiKeyInput")) qs("apiKeyInput").value = state.key;
+        if (qs("adminPasswordInput")) qs("adminPasswordInput").value = state.key;
         if (qs("loginKeyInput")) qs("loginKeyInput").value = state.key;
       }
       function storeKey(key, remember) {
@@ -719,20 +789,24 @@ const HTML = `<!doctype html>
         storeKey("", true);
         renderStatus();
         renderModels();
+        renderApiKeys();
         renderTokens();
         showLogin(err.message || "管理密码无效，请重新登录");
         return true;
       }
       function isAdminAuthRequired() {
         var h = state.health || {};
-        return h.admin_auth_required !== undefined ? !!h.admin_auth_required : !!h.auth_required;
+        return h.admin_auth_required !== undefined ? !!h.admin_auth_required : true;
+      }
+      function adminPasswordConfigured() {
+        return !(state.health && state.health.admin_password_configured === false);
       }
       function authNeeded() {
-        return state.health && isAdminAuthRequired() && !state.key;
+        return state.health && isAdminAuthRequired() && (!state.key || !adminPasswordConfigured());
       }
       function requireKey() {
         if (authNeeded()) {
-          showLogin("请先输入管理密码");
+          showLogin(adminPasswordConfigured() ? "请先输入管理密码" : "请先在 Cloudflare Worker Secret 中设置 ADMIN_PASSWORD");
           return false;
         }
         return true;
@@ -801,6 +875,27 @@ const HTML = `<!doctype html>
         renderStatus();
       }
 
+      async function loadApiKeys() {
+        if (authNeeded()) {
+          state.apiKeys = [];
+          state.apiKeyCounts = null;
+          renderApiKeys();
+          showLogin(adminPasswordConfigured() ? "请输入管理密码登录控制台" : "请先在 Cloudflare Worker Secret 中设置 ADMIN_PASSWORD");
+          return;
+        }
+        try {
+          var data = await fetchJson("/admin/api/api-keys?ts=" + Date.now(), { headers: headers() });
+          state.apiKeys = Array.isArray(data.data) ? data.data : [];
+          state.apiKeyCounts = data.counts || null;
+          state.apiKeyKvConfigured = !!data.kv_configured;
+        } catch (err) {
+          state.apiKeys = [];
+          state.apiKeyCounts = null;
+          if (!handleAuthError(err)) toast("API Key 加载失败：" + (err.message || String(err)));
+        }
+        renderApiKeys();
+      }
+
       function renderStatus() {
         var h = state.health || {};
         var ok = h.status === "ok";
@@ -816,13 +911,17 @@ const HTML = `<!doctype html>
         var egress = features.vpc_egress && features.vpc_egress_binding ? "VPC" : "Direct";
         text("egressChip", "egress " + egress);
         var keyChip = qs("keyChip");
-        if (!isAdminAuthRequired()) {
+        if (!adminPasswordConfigured()) {
+          keyChip.className = "chip bad";
+          keyChip.textContent = "ADMIN_PASSWORD 未配置";
+        } else if (!isAdminAuthRequired()) {
           keyChip.className = "chip ok";
           keyChip.textContent = state.key ? "已保存（可选）" : "未启用鉴权";
         } else {
           keyChip.className = "chip " + (state.key ? "ok" : "warn");
           keyChip.textContent = state.key ? "已登录" : "未登录";
         }
+        renderKvStatus();
       }
 
       function renderModels() {
@@ -926,7 +1025,77 @@ const HTML = `<!doctype html>
         box.scrollTop = box.scrollHeight;
       }
 
+      function renderKvStatus() {
+        var chip = qs("kvChip");
+        if (!chip) return;
+        chip.className = "chip " + (state.kvConfigured || state.apiKeyKvConfigured ? "ok" : "warn");
+        chip.textContent = state.kvConfigured || state.apiKeyKvConfigured ? "KV 已连接" : "KV 未配置";
+      }
+
+      function renderApiKeys() {
+        renderKvStatus();
+        var list = qs("apiKeyList");
+        list.textContent = "";
+        if (authNeeded()) {
+          list.innerHTML = '<div class="empty-list">请先输入管理密码后管理下游 API Key。</div>';
+          return;
+        }
+        if (!state.apiKeys.length) {
+          list.innerHTML = '<div class="empty-list">暂无 API Key。Cloudflare Secret API_KEY 会在这里只读显示；也可以添加写入 KV 的 managed key。</div>';
+          return;
+        }
+        state.apiKeys.slice().sort(function (a, b) {
+          return String(a.source).localeCompare(String(b.source)) || String(a.label).localeCompare(String(b.label));
+        }).forEach(function (key) {
+          var card = document.createElement("div");
+          card.className = "key-card";
+
+          var top = document.createElement("div");
+          top.className = "row between";
+          var main = document.createElement("div");
+          main.style.minWidth = "0";
+          var label = document.createElement("div");
+          label.className = "key-label";
+          label.textContent = key.label || "API key";
+          var masked = document.createElement("div");
+          masked.className = "mono";
+          masked.style.color = "var(--muted)";
+          masked.textContent = key.masked || "sk-…";
+          main.appendChild(label);
+          main.appendChild(masked);
+
+          var actions = document.createElement("div");
+          actions.className = "row";
+          if (!key.readonly) {
+            var enable = document.createElement("button");
+            enable.className = "btn small " + (key.enabled ? "" : "primary");
+            enable.type = "button";
+            enable.textContent = key.enabled ? "禁用" : "启用";
+            enable.addEventListener("click", function () { toggleApiKey(key); });
+            var del = document.createElement("button");
+            del.className = "btn small danger";
+            del.type = "button";
+            del.textContent = "删除";
+            del.addEventListener("click", function () { deleteApiKey(key); });
+            actions.appendChild(enable);
+            actions.appendChild(del);
+          }
+          top.appendChild(main);
+          top.appendChild(actions);
+          card.appendChild(top);
+
+          var meta = document.createElement("div");
+          meta.className = "token-meta";
+          meta.innerHTML = '<span class="chip ' + (key.enabled ? 'ok' : 'warn') + '">' + (key.enabled ? 'enabled' : 'disabled') + '</span>' +
+            '<span class="chip plain">' + key.source + '</span>' +
+            (key.readonly ? '<span class="chip plain">read-only</span>' : '<span class="chip plain">KV</span>');
+          card.appendChild(meta);
+          list.appendChild(card);
+        });
+      }
+
       function renderTokens() {
+        renderKvStatus();
         var stats = tokenStats(state.counts, state.health || {});
         text("tokenCount", statText(stats.total));
         text("validTokenCount", statText(stats.valid));
@@ -938,7 +1107,7 @@ const HTML = `<!doctype html>
           return;
         }
         if (!state.tokens.length) {
-          list.innerHTML = '<div class="empty-list">暂无 Token。添加一个 managed token 后即可在 KV 中管理启用、禁用和删除。</div>';
+          list.innerHTML = '<div class="empty-list">' + (state.kvConfigured ? '暂无 Token。添加一个 managed token 后即可在 KV 中管理启用、禁用和删除。' : 'TOKEN_STORE KV 未配置或未连接；管理页新增的 Token 无法跨浏览器/线上环境同步。') + '</div>';
           return;
         }
         var grouped = state.tokens.slice().sort(function (a, b) {
@@ -1108,6 +1277,23 @@ const HTML = `<!doctype html>
         qs("importTokenFileBtn").disabled = busy;
       }
 
+      function setApiKeyWriteBusy(busy) {
+        qs("addApiKeyBtn").disabled = busy;
+        qs("reloadApiKeysBtn").disabled = busy;
+      }
+
+      function showGeneratedApiKey(secret) {
+        state.generatedApiKey = String(secret || "");
+        var box = qs("generatedApiKeyBox");
+        if (!state.generatedApiKey) {
+          box.classList.add("hidden");
+          text("generatedApiKeyText", "");
+          return;
+        }
+        text("generatedApiKeyText", state.generatedApiKey);
+        box.classList.remove("hidden");
+      }
+
       function readFileText(file) {
         if (file && typeof file.text === "function") return file.text();
         return new Promise(function (resolve, reject) {
@@ -1131,6 +1317,69 @@ const HTML = `<!doctype html>
             enabled: qs("tokenEnabledInput").checked
           })
         });
+      }
+
+      async function addApiKey() {
+        if (!requireKey()) return;
+        setApiKeyWriteBusy(true);
+        try {
+          var value = qs("apiKeyValueInput").value.trim();
+          var data = await fetchJson("/admin/api/api-keys", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({
+              key: value,
+              label: qs("apiKeyLabelInput").value.trim(),
+              enabled: qs("apiKeyEnabledInput").checked
+            })
+          });
+          qs("apiKeyValueInput").value = "";
+          qs("apiKeyLabelInput").value = "";
+          showGeneratedApiKey(data && data.secret ? data.secret : "");
+          toast(data && data.secret ? "API Key 已生成，请复制保存" : "API Key 已添加");
+          await loadApiKeys();
+        } catch (err) {
+          if (!handleAuthError(err)) toast("API Key 添加失败：" + (err.message || String(err)));
+        } finally {
+          setApiKeyWriteBusy(false);
+        }
+      }
+
+      async function toggleApiKey(key) {
+        if (!requireKey()) return;
+        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中修改"); return; }
+        try {
+          await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
+            method: "PATCH",
+            headers: headers(),
+            body: JSON.stringify({ enabled: !key.enabled })
+          });
+          toast(key.enabled ? "API Key 已禁用" : "API Key 已启用");
+          await loadApiKeys();
+        } catch (err) {
+          if (!handleAuthError(err)) toast("API Key 操作失败：" + (err.message || String(err)));
+        }
+      }
+
+      async function deleteApiKey(key) {
+        if (!requireKey()) return;
+        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中删除"); return; }
+        if (!confirm("确认删除这个下游 API Key？删除后客户端将无法继续使用它。")) return;
+        try {
+          await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
+            method: "DELETE",
+            headers: headers()
+          });
+          toast("API Key 已删除");
+          await loadApiKeys();
+        } catch (err) {
+          if (!handleAuthError(err)) toast("API Key 删除失败：" + (err.message || String(err)));
+        }
+      }
+
+      function copyGeneratedApiKey() {
+        if (!state.generatedApiKey) return;
+        navigator.clipboard.writeText(state.generatedApiKey).then(function () { toast("API Key 已复制"); }, function () { toast("复制失败"); });
       }
 
       async function addToken() {
@@ -1228,6 +1477,9 @@ const HTML = `<!doctype html>
 
       async function loginWithKey(key, remember) {
         key = String(key || "").trim();
+        if (state.health && !adminPasswordConfigured()) {
+          throw new Error("ADMIN_PASSWORD 未配置：请先执行 npx wrangler secret put ADMIN_PASSWORD 后重新部署/刷新。");
+        }
         if (state.health && isAdminAuthRequired() && !key) {
           throw new Error("请输入管理密码");
         }
@@ -1259,11 +1511,11 @@ const HTML = `<!doctype html>
         var btn = qs("saveKeyBtn");
         btn.disabled = true;
         try {
-          await loginWithKey(qs("apiKeyInput").value, true);
+          await loginWithKey(qs("adminPasswordInput").value, true);
           toast(state.key ? "已登录" : "已保存");
         } catch (err) {
           showLogin(err.message || String(err));
-          qs("loginKeyInput").value = qs("apiKeyInput").value;
+          qs("loginKeyInput").value = qs("adminPasswordInput").value;
         } finally {
           btn.disabled = false;
         }
@@ -1272,6 +1524,7 @@ const HTML = `<!doctype html>
         storeKey("", true);
         renderStatus();
         renderModels();
+        renderApiKeys();
         renderTokens();
         if (state.health && isAdminAuthRequired()) showLogin("已退出，请重新登录");
       }
@@ -1295,14 +1548,22 @@ const HTML = `<!doctype html>
       }
       async function refreshAll() {
         await loadHealth();
+        if (state.health && !adminPasswordConfigured()) {
+          showLogin("ADMIN_PASSWORD 未配置：请先在 Cloudflare Worker Secret 中设置管理密码。");
+          renderModels();
+          renderApiKeys();
+          renderTokens();
+          return;
+        }
         if (authNeeded()) {
           showLogin("请输入管理密码登录控制台");
           renderModels();
+          renderApiKeys();
           renderTokens();
           return;
         }
         if (state.health && !isAdminAuthRequired()) hideLogin();
-        await Promise.all([loadModels(), loadTokens()]);
+        await Promise.all([loadModels(), loadApiKeys(), loadTokens()]);
       }
 
       function bind() {
@@ -1311,7 +1572,7 @@ const HTML = `<!doctype html>
         qs("saveKeyBtn").addEventListener("click", saveKey);
         qs("clearKeyBtn").addEventListener("click", clearKey);
         qs("toggleKeyBtn").addEventListener("click", function () {
-          var input = qs("apiKeyInput");
+          var input = qs("adminPasswordInput");
           input.type = input.type === "password" ? "text" : "password";
           qs("toggleKeyBtn").textContent = input.type === "password" ? "显示" : "隐藏";
         });
@@ -1326,6 +1587,9 @@ const HTML = `<!doctype html>
           updateActiveModel();
         });
         qs("refreshBtn").addEventListener("click", refreshAll);
+        qs("reloadApiKeysBtn").addEventListener("click", loadApiKeys);
+        qs("addApiKeyBtn").addEventListener("click", addApiKey);
+        qs("copyGeneratedApiKeyBtn").addEventListener("click", copyGeneratedApiKey);
         qs("reloadTokensBtn").addEventListener("click", loadTokens);
         qs("clearChatBtn").addEventListener("click", clearChat);
         qs("chatForm").addEventListener("submit", sendChat);

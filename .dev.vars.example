@@ -1,7 +1,7 @@
-# Management password for /admin. If unset, API_KEY is used as a fallback.
+# Management password for /admin. This is separate from API_KEY and has no fallback.
 ADMIN_PASSWORD=admin-change-me
 
-# Client-side API key for /v1/*. Empty or unset means no API auth.
+# Client-side API key for /v1/*. Empty or unset means no API auth until managed keys are added.
 API_KEY=change-me
 
 # SSO token(s). Accepts comma/newline-separated values or a JSON array.
@@ -16,7 +16,7 @@ GROK_TOKENS=sso-token-1,sso-token-2
 # Optional account pool JSON:
 # ACCOUNT_POOL_JSON={"basic":["..."],"super":["..."],"heavy":["..."]}
 
-# 管理页新增/禁用/删除 Token 需要 wrangler.toml 里的 TOKEN_STORE KV binding。
+# 管理页新增/禁用/删除下游 API Keys 和 Grok Tokens 需要 wrangler.toml 里的 TOKEN_STORE KV binding。
 # 本地 wrangler dev 会使用本地 KV；部署前执行：
 #   npx wrangler kv namespace create TOKEN_STORE
 

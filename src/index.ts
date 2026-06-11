@@ -3,6 +3,16 @@ import { allowedOrigins, boolEnv } from "./config";
 import { ApiError, errorResponse, jsonResponse } from "./errors";
 import { listAvailableModels, supportedReasoningEfforts, type ModelSpec } from "./models";
 import { addToken, addTokens, deleteToken, publicTokenAccounts, tokenCounts, updateToken } from "./token-pool";
+import {
+  addApiKey,
+  apiKeyCounts,
+  deleteApiKey,
+  hasAnyApiKey,
+  parseApiKeys,
+  publicApiKeys,
+  updateApiKey,
+  validateApiKey,
+} from "./api-keys";
 import { handleAnthropicMessages } from "./anthropic/messages";
 import { handleChatCompletions } from "./openai/chat";
 import { handleImageGenerations } from "./openai/images";
@@ -41,7 +51,7 @@ async function route(request: Request, env: Env, path: string): Promise<Response
   if (path.startsWith("/admin/api/")) {
     authenticateAdmin(request, env);
   } else if (path.startsWith("/v1/")) {
-    authenticate(request, env);
+    await authenticate(request, env);
   }
 
   if (path === "/admin/api/models" && request.method === "GET") return listModelsResponse(env);
@@ -56,6 +66,17 @@ async function route(request: Request, env: Env, path: string): Promise<Response
   if (path.startsWith("/admin/api/tokens/") && request.method === "DELETE") {
     const id = decodeURIComponent(path.slice("/admin/api/tokens/".length));
     return adminDeleteToken(env, id);
+  }
+
+  if (path === "/admin/api/api-keys" && request.method === "GET") return adminApiKeysResponse(env);
+  if (path === "/admin/api/api-keys" && request.method === "POST") return adminAddApiKey(request, env);
+  if (path.startsWith("/admin/api/api-keys/") && request.method === "PATCH") {
+    const id = decodeURIComponent(path.slice("/admin/api/api-keys/".length));
+    return adminUpdateApiKey(request, env, id);
+  }
+  if (path.startsWith("/admin/api/api-keys/") && request.method === "DELETE") {
+    const id = decodeURIComponent(path.slice("/admin/api/api-keys/".length));
+    return adminDeleteApiKey(env, id);
   }
 
   if (path === "/v1/models" && request.method === "GET") return listModelsResponse(env);
@@ -92,7 +113,7 @@ async function route(request: Request, env: Env, path: string): Promise<Response
   });
 }
 
-function rootResponse(env: Env): Response {
+async function rootResponse(env: Env): Promise<Response> {
   return jsonResponse({
     name: "grok2api-worker",
     object: "service",
@@ -107,8 +128,9 @@ function rootResponse(env: Env): Response {
       "POST /v1/messages",
       "POST /v1/images/generations",
     ],
-    auth_required: parseApiKeys(env.API_KEY).length > 0,
-    admin_auth_required: parseAdminPasswords(env).length > 0,
+    auth_required: await hasAnyApiKey(env),
+    admin_auth_required: true,
+    admin_password_configured: parseAdminPasswords(env).length > 0,
   });
 }
 
@@ -120,8 +142,9 @@ async function healthResponse(env: Env): Promise<Response> {
     status: "ok",
     object: "health",
     time: nowSeconds(),
-    auth_required: parseApiKeys(env.API_KEY).length > 0,
-    admin_auth_required: parseAdminPasswords(env).length > 0,
+    auth_required: await hasAnyApiKey(env),
+    admin_auth_required: true,
+    admin_password_configured: parseAdminPasswords(env).length > 0,
     available_models: models.length,
     token_pools: {
       generic: counts.generic.enabled,
@@ -147,6 +170,44 @@ async function healthResponse(env: Env): Promise<Response> {
       expose_all_models: boolEnv(env, "WORKER_EXPOSE_ALL_MODELS", false),
     },
   });
+}
+
+async function adminApiKeysResponse(env: Env): Promise<Response> {
+  const keys = await publicApiKeys(env);
+  return jsonResponse({
+    object: "api_key_pool",
+    kv_configured: !!env.TOKEN_STORE,
+    counts: apiKeyCounts(keys),
+    data: keys,
+  });
+}
+
+async function adminAddApiKey(request: Request, env: Env): Promise<Response> {
+  const body = await readJsonObject(request);
+  const result = await addApiKey(env, {
+    key: typeof body.key === "string" ? body.key : "",
+    label: typeof body.label === "string" ? body.label : "",
+    enabled: body.enabled === undefined ? true : !!body.enabled,
+  });
+  const response: Record<string, unknown> = { object: "api_key", data: result.key, generated: result.generated };
+  if (result.secret) response.secret = result.secret;
+  return jsonResponse(response, 201);
+}
+
+async function adminUpdateApiKey(request: Request, env: Env, id: string): Promise<Response> {
+  if (!id) throw new ApiError("API key id is required", { status: 400, type: "invalid_request_error", param: "id" });
+  const body = await readJsonObject(request);
+  const patch: { enabled?: boolean; label?: string } = {};
+  if (body.enabled !== undefined) patch.enabled = !!body.enabled;
+  if (body.label !== undefined) patch.label = String(body.label || "");
+  const key = await updateApiKey(env, id, patch);
+  return jsonResponse({ object: "api_key", data: key });
+}
+
+async function adminDeleteApiKey(env: Env, id: string): Promise<Response> {
+  if (!id) throw new ApiError("API key id is required", { status: 400, type: "invalid_request_error", param: "id" });
+  await deleteApiKey(env, id);
+  return jsonResponse({ object: "api_key.deleted", id, deleted: true });
 }
 
 async function listModelsResponse(env: Env): Promise<Response> {
@@ -236,9 +297,15 @@ async function readJsonObject(request: Request): Promise<Record<string, unknown>
 
 function authenticateAdmin(request: Request, env: Env): void {
   const keys = parseAdminPasswords(env);
-  if (!keys.length) return;
+  if (!keys.length) {
+    throw new ApiError("ADMIN_PASSWORD is not configured. Set it as a Cloudflare Worker secret before using /admin/api.", {
+      status: 500,
+      type: "server_error",
+      code: "admin_password_not_configured",
+    });
+  }
 
-  const token = extractBearer(request.headers.get("authorization")) || request.headers.get("x-admin-key") || request.headers.get("x-api-key") || "";
+  const token = extractBearer(request.headers.get("authorization")) || request.headers.get("x-admin-key") || "";
   if (!token) {
     throw new ApiError("Missing admin password.", {
       status: 401,
@@ -257,15 +324,13 @@ function authenticateAdmin(request: Request, env: Env): void {
 }
 
 function parseAdminPasswords(env: Env): string[] {
-  const explicit = parseApiKeys(env.ADMIN_PASSWORD);
-  return explicit.length ? explicit : parseApiKeys(env.API_KEY);
+  return parseApiKeys(env.ADMIN_PASSWORD);
 }
 
-function authenticate(request: Request, env: Env): void {
-  const keys = parseApiKeys(env.API_KEY);
-  if (!keys.length) return;
-
+async function authenticate(request: Request, env: Env): Promise<void> {
   const token = extractBearer(request.headers.get("authorization")) || request.headers.get("x-api-key") || "";
+  const result = await validateApiKey(env, token);
+  if (!result.required) return;
   if (!token) {
     throw new ApiError("Missing or invalid Authorization header.", {
       status: 401,
@@ -274,34 +339,13 @@ function authenticate(request: Request, env: Env): void {
     });
   }
 
-  if (!keys.some((key) => timingSafeEqual(token, key))) {
+  if (!result.valid) {
     throw new ApiError("Invalid API key.", {
       status: 403,
       type: "authentication_error",
       code: "invalid_api_key",
     });
   }
-}
-
-function parseApiKeys(raw: unknown): string[] {
-  if (raw === undefined || raw === null) return [];
-  if (Array.isArray(raw)) return [...new Set(raw.map((x) => String(x).trim()).filter(Boolean))];
-  const text = String(raw).trim();
-  if (!text) return [];
-  try {
-    const parsed = JSON.parse(text) as unknown;
-    if (Array.isArray(parsed)) return [...new Set(parsed.map((x) => String(x).trim()).filter(Boolean))];
-  } catch {
-    // fall back to CSV/newline parsing
-  }
-  return [
-    ...new Set(
-      text
-        .split(/[,\n\r\t]+/g)
-        .map((x) => x.trim())
-        .filter(Boolean),
-    ),
-  ];
 }
 
 function extractBearer(authorization: string | null): string | null {
@@ -334,6 +378,8 @@ function allowedMethodsFor(path: string): string | null {
   if (path === "/admin/api/chat/completions") return "POST,OPTIONS";
   if (path === "/admin/api/tokens") return "GET,POST,OPTIONS";
   if (path.startsWith("/admin/api/tokens/")) return "PATCH,DELETE,OPTIONS";
+  if (path === "/admin/api/api-keys") return "GET,POST,OPTIONS";
+  if (path.startsWith("/admin/api/api-keys/")) return "PATCH,DELETE,OPTIONS";
   if (
     path === "/v1/chat/completions" ||
     path === "/v1/responses" ||
