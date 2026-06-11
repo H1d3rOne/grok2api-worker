@@ -125,6 +125,19 @@ export const MODELS: ModelSpec[] = [
 ];
 
 const BY_ID = new Map(MODELS.map((m) => [m.id, m]));
+const WORKER_TESTED_MODEL_IDS = new Set<string>([
+  // grok.com app-chat path that has been verified in the Worker build.
+  "grok-4.20-fast",
+
+  // console.x.ai-compatible public names with verified effort metadata.
+  "grok-4.3",
+  "grok-4",
+  "grok-4.20",
+  "grok-4.20-reasoning",
+  "grok-4.20-non-reasoning",
+  "grok-4.20-multi-agent",
+  "grok-build-0.1",
+]);
 
 export function getModel(id: string): ModelSpec | undefined {
   return BY_ID.get(id);
@@ -142,9 +155,7 @@ export function poolCandidates(spec: ModelSpec): PoolName[] {
 }
 
 export function isWorkerSupportedModel(spec: ModelSpec): boolean {
-  if (spec.capability === "chat") return true;
-  if (spec.id === "grok-imagine-image-lite") return true;
-  return false;
+  return WORKER_TESTED_MODEL_IDS.has(spec.id);
 }
 
 const CONSOLE_APP_CHAT_FALLBACKS: Record<string, string> = {
@@ -175,8 +186,8 @@ export function appChatFallbackSpec(spec: ModelSpec): ModelSpec {
     enabled: spec.enabled,
     name: `${spec.name} via grok.com app-chat`,
     consoleModel: undefined,
-    defaultReasoningEffort: undefined,
-    supportedReasoningEfforts: DEFAULT_CHAT_REASONING_EFFORTS,
+    defaultReasoningEffort: spec.defaultReasoningEffort,
+    supportedReasoningEfforts: spec.supportedReasoningEfforts || DEFAULT_CHAT_REASONING_EFFORTS,
   };
 }
 

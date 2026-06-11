@@ -234,7 +234,7 @@ function modelObject(spec: ModelSpec): Record<string, unknown> {
     object: "model",
     created: nowSeconds(),
     owned_by: "xai",
-    name: spec.name,
+    name: spec.id,
     reasoning_efforts: supportedReasoningEfforts(spec),
     default_reasoning_effort: spec.defaultReasoningEffort || null,
   };

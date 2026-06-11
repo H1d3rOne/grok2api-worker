@@ -322,7 +322,7 @@ const HTML = `<!doctype html>
       border-bottom: 1px solid var(--line);
       display: grid;
       gap: 5px;
-      max-height: 156px;
+      max-height: 150px;
       overflow: auto;
       scrollbar-gutter: stable;
     }
@@ -330,7 +330,7 @@ const HTML = `<!doctype html>
     .compact-form .input { height: 30px; border-radius: 12px; padding: 0 9px; font-size: 12px; }
     .compact-check { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
     .key-list {
-      max-height: 46px;
+      max-height: 78px;
       overflow: auto;
       display: grid;
       gap: 3px;
@@ -350,11 +350,13 @@ const HTML = `<!doctype html>
     }
     .key-card .row { gap: 4px; flex-wrap: nowrap; }
     .key-main-line { min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
-    .key-label { min-width: 0; max-width: 76px; font-weight: 760; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .key-label { min-width: 0; max-width: 86px; font-weight: 760; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .key-card .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .key-main-line .mono { flex: 1 1 auto; min-width: 46px; color: var(--muted); }
     .key-card .chip { min-height: 19px; padding: 0 6px; font-size: 10px; }
     .key-card .btn.small { min-height: 23px; padding: 0 7px; font-size: 11px; }
+    .key-enable { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+    .key-enable input { width: 13px; height: 13px; }
     .generated-key {
       margin-top: 2px;
       border: 1px solid rgba(115,247,198,.28);
@@ -464,6 +466,41 @@ const HTML = `<!doctype html>
     .login-actions { margin-top: 14px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
     .remember { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 7px; }
 
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(5, 6, 10, .58);
+      backdrop-filter: blur(14px);
+      opacity: 1;
+      pointer-events: auto;
+      transition: opacity .18s ease;
+    }
+    .modal-overlay.hidden { opacity: 0; pointer-events: none; }
+    .settings-dialog {
+      width: min(460px, 100%);
+      border: 1px solid var(--line-2);
+      border-radius: 28px;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(20,24,34,.97), rgba(9,11,17,.97));
+      box-shadow: 0 34px 110px rgba(0,0,0,.56);
+      animation: enter .22s ease both;
+    }
+    .settings-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .settings-title { margin: 0; font-size: 20px; letter-spacing: -.035em; }
+    .settings-sub { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .settings-block {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px;
+      background: rgba(255,255,255,.035);
+      display: grid;
+      gap: 9px;
+    }
+
     @media (max-width: 1180px) {
       body { overflow: auto; }
       .app { height: auto; grid-template-columns: 260px minmax(0, 1fr); }
@@ -534,20 +571,6 @@ const HTML = `<!doctype html>
       </section>
 
       <section class="section">
-        <h2 class="section-title">登录状态</h2>
-        <label class="field">
-          <span class="label">管理密码</span>
-          <input id="adminPasswordInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
-        </label>
-        <div class="row">
-          <button id="saveKeyBtn" class="btn primary small" type="button">登录/更新</button>
-          <button id="toggleKeyBtn" class="btn small" type="button">显示</button>
-          <button id="clearKeyBtn" class="btn ghost small" type="button">退出</button>
-        </div>
-        <div style="margin-top:10px"><span id="keyChip" class="chip warn">未保存</span></div>
-      </section>
-
-      <section class="section">
         <h2 class="section-title">模型选择</h2>
         <label class="field">
           <span class="label">可用模型</span>
@@ -584,6 +607,7 @@ const HTML = `<!doctype html>
             <option value="xhigh">reasoning xhigh</option>
           </select>
           <button id="copyCurlBtn" class="btn small" type="button">复制 curl</button>
+          <button id="settingsBtn" class="btn small" type="button">设置</button>
         </div>
       </header>
 
@@ -665,6 +689,33 @@ const HTML = `<!doctype html>
     </aside>
   </main>
 
+  <div id="settingsOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <section class="settings-dialog">
+      <div class="settings-head">
+        <div>
+          <h2 id="settingsTitle" class="settings-title">设置</h2>
+          <p class="settings-sub">管理页登录使用 ADMIN_PASSWORD；这里仅保存到当前浏览器，不会修改 Cloudflare Secret。</p>
+        </div>
+        <button id="settingsCloseBtn" class="btn small ghost" type="button" aria-label="关闭设置">关闭</button>
+      </div>
+      <div class="settings-block">
+        <div class="row between">
+          <h3 class="mini-title">管理密码</h3>
+          <span id="keyChip" class="chip warn">未保存</span>
+        </div>
+        <label class="field">
+          <span class="label">ADMIN_PASSWORD</span>
+          <input id="settingsAdminPasswordInput" class="input" type="password" placeholder="输入管理密码" autocomplete="off" />
+        </label>
+        <div class="row">
+          <button id="settingsSaveKeyBtn" class="btn primary small" type="button">登录/更新</button>
+          <button id="settingsToggleKeyBtn" class="btn small" type="button">显示</button>
+          <button id="settingsClearKeyBtn" class="btn ghost small" type="button">退出</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
@@ -741,7 +792,7 @@ const HTML = `<!doctype html>
         toast._timer = setTimeout(function () { el.classList.remove("show"); }, 2600);
       }
       function syncKeyInputs() {
-        if (qs("adminPasswordInput")) qs("adminPasswordInput").value = state.key;
+        if (qs("settingsAdminPasswordInput")) qs("settingsAdminPasswordInput").value = state.key;
         if (qs("loginKeyInput")) qs("loginKeyInput").value = state.key;
       }
       function storeKey(key, remember) {
@@ -914,15 +965,17 @@ const HTML = `<!doctype html>
         var egress = features.vpc_egress && features.vpc_egress_binding ? "VPC" : "Direct";
         text("egressChip", "egress " + egress);
         var keyChip = qs("keyChip");
-        if (!adminPasswordConfigured()) {
-          keyChip.className = "chip bad";
-          keyChip.textContent = "ADMIN_PASSWORD 未配置";
-        } else if (!isAdminAuthRequired()) {
-          keyChip.className = "chip ok";
-          keyChip.textContent = state.key ? "已保存（可选）" : "未启用鉴权";
-        } else {
-          keyChip.className = "chip " + (state.key ? "ok" : "warn");
-          keyChip.textContent = state.key ? "已登录" : "未登录";
+        if (keyChip) {
+          if (!adminPasswordConfigured()) {
+            keyChip.className = "chip bad";
+            keyChip.textContent = "ADMIN_PASSWORD 未配置";
+          } else if (!isAdminAuthRequired()) {
+            keyChip.className = "chip ok";
+            keyChip.textContent = state.key ? "已保存（可选）" : "未启用鉴权";
+          } else {
+            keyChip.className = "chip " + (state.key ? "ok" : "warn");
+            keyChip.textContent = state.key ? "已登录" : "未登录";
+          }
         }
         renderKvStatus();
       }
@@ -1058,41 +1111,48 @@ const HTML = `<!doctype html>
           var label = document.createElement("span");
           label.className = "key-label";
           label.textContent = key.label || "API key";
-          var masked = document.createElement("span");
-          masked.className = "mono";
-          masked.textContent = key.masked || "sk-…";
-          var status = document.createElement("span");
-          status.className = "chip " + (key.enabled ? "ok" : "warn");
-          status.textContent = key.enabled ? "on" : "off";
+          label.title = key.label || "API key";
+          var value = document.createElement("span");
+          value.className = "mono";
+          value.textContent = key.masked || "sk-…";
+          value.dataset.visible = "0";
           var source = document.createElement("span");
           source.className = "chip plain";
           source.textContent = key.readonly ? "secret" : "KV";
           main.appendChild(label);
-          main.appendChild(masked);
-          main.appendChild(status);
+          main.appendChild(value);
           main.appendChild(source);
 
           var actions = document.createElement("div");
           actions.className = "row";
-          if (!key.readonly) {
-            var enable = document.createElement("button");
-            enable.className = "btn small " + (key.enabled ? "" : "primary");
-            enable.type = "button";
-            enable.textContent = key.enabled ? "禁用" : "启用";
-            enable.addEventListener("click", function () { toggleApiKey(key); });
-            var del = document.createElement("button");
-            del.className = "btn small danger";
-            del.type = "button";
-            del.textContent = "删";
-            del.addEventListener("click", function () { deleteApiKey(key); });
-            actions.appendChild(enable);
-            actions.appendChild(del);
-          } else {
-            var ro = document.createElement("span");
-            ro.className = "chip plain";
-            ro.textContent = "只读";
-            actions.appendChild(ro);
-          }
+          var enabledLabel = document.createElement("label");
+          enabledLabel.className = "key-enable";
+          var enabledBox = document.createElement("input");
+          enabledBox.type = "checkbox";
+          enabledBox.checked = !!key.enabled;
+          enabledBox.disabled = !!key.readonly;
+          enabledBox.addEventListener("change", function () { setApiKeyEnabled(key, enabledBox.checked); });
+          enabledLabel.appendChild(enabledBox);
+          enabledLabel.appendChild(document.createTextNode("启用"));
+          var show = document.createElement("button");
+          show.className = "btn small";
+          show.type = "button";
+          show.textContent = "显示";
+          show.addEventListener("click", function () { toggleApiKeyVisible(key, value, show); });
+          var copy = document.createElement("button");
+          copy.className = "btn small";
+          copy.type = "button";
+          copy.textContent = "复制";
+          copy.addEventListener("click", function () { copyApiKey(key); });
+          var edit = document.createElement("button");
+          edit.className = "btn small";
+          edit.type = "button";
+          edit.textContent = "编辑";
+          edit.addEventListener("click", function () { editApiKey(key); });
+          actions.appendChild(enabledLabel);
+          actions.appendChild(show);
+          actions.appendChild(copy);
+          actions.appendChild(edit);
           card.appendChild(main);
           card.appendChild(actions);
           list.appendChild(card);
@@ -1350,35 +1410,63 @@ const HTML = `<!doctype html>
         }
       }
 
-      async function toggleApiKey(key) {
+      async function setApiKeyEnabled(key, enabled) {
         if (!requireKey()) return;
-        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中修改"); return; }
+        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中修改"); await loadApiKeys(); return; }
         try {
           await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
             method: "PATCH",
             headers: headers(),
-            body: JSON.stringify({ enabled: !key.enabled })
+            body: JSON.stringify({ enabled: !!enabled })
           });
-          toast(key.enabled ? "API Key 已禁用" : "API Key 已启用");
+          toast(enabled ? "API Key 已启用" : "API Key 已禁用");
           await loadApiKeys();
         } catch (err) {
           if (!handleAuthError(err)) toast("API Key 操作失败：" + (err.message || String(err)));
+          await loadApiKeys();
         }
       }
 
-      async function deleteApiKey(key) {
+      function toggleApiKeyVisible(key, valueEl, btn) {
+        if (valueEl.dataset.visible === "1") {
+          valueEl.textContent = key.masked || "sk-…";
+          valueEl.dataset.visible = "0";
+          btn.textContent = "显示";
+          return;
+        }
+        if (key.secret) {
+          valueEl.textContent = key.secret;
+          valueEl.dataset.visible = "1";
+          btn.textContent = "隐藏";
+          return;
+        }
+        valueEl.textContent = key.masked || "sk-…";
+        toast(key.readonly ? "Cloudflare Secret API_KEY 不能在管理页显示完整值" : "旧 API Key 未保存明文，只能显示脱敏值");
+      }
+
+      function copyApiKey(key) {
+        var value = key.secret || key.masked || "";
+        if (!value) return;
+        navigator.clipboard.writeText(value).then(function () {
+          toast(key.secret ? "API Key 已复制" : "只能复制脱敏值，完整值未存储");
+        }, function () { toast("复制失败"); });
+      }
+
+      async function editApiKey(key) {
         if (!requireKey()) return;
-        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中删除"); return; }
-        if (!confirm("确认删除这个下游 API Key？删除后客户端将无法继续使用它。")) return;
+        if (key.readonly) { toast("Cloudflare Secret API_KEY 只能在 Worker Secret 中修改"); return; }
+        var label = prompt("编辑 API Key 标签", key.label || "");
+        if (label === null) return;
         try {
           await fetchJson("/admin/api/api-keys/" + encodeURIComponent(key.id), {
-            method: "DELETE",
-            headers: headers()
+            method: "PATCH",
+            headers: headers(),
+            body: JSON.stringify({ label: String(label || "").trim() })
           });
-          toast("API Key 已删除");
+          toast("API Key 已更新");
           await loadApiKeys();
         } catch (err) {
-          if (!handleAuthError(err)) toast("API Key 删除失败：" + (err.message || String(err)));
+          if (!handleAuthError(err)) toast("API Key 编辑失败：" + (err.message || String(err)));
         }
       }
 
@@ -1513,14 +1601,15 @@ const HTML = `<!doctype html>
       }
 
       async function saveKey() {
-        var btn = qs("saveKeyBtn");
+        var btn = qs("settingsSaveKeyBtn");
         btn.disabled = true;
         try {
-          await loginWithKey(qs("adminPasswordInput").value, true);
+          await loginWithKey(qs("settingsAdminPasswordInput").value, true);
           toast(state.key ? "已登录" : "已保存");
+          closeSettings();
         } catch (err) {
           showLogin(err.message || String(err));
-          qs("loginKeyInput").value = qs("adminPasswordInput").value;
+          qs("loginKeyInput").value = qs("settingsAdminPasswordInput").value;
         } finally {
           btn.disabled = false;
         }
@@ -1532,6 +1621,19 @@ const HTML = `<!doctype html>
         renderApiKeys();
         renderTokens();
         if (state.health && isAdminAuthRequired()) showLogin("已退出，请重新登录");
+      }
+      function openSettings() {
+        var overlay = qs("settingsOverlay");
+        overlay.classList.remove("hidden");
+        syncKeyInputs();
+        setTimeout(function () {
+          var input = qs("settingsAdminPasswordInput");
+          if (input) input.focus();
+        }, 20);
+      }
+      function closeSettings() {
+        var overlay = qs("settingsOverlay");
+        overlay.classList.add("hidden");
       }
       function copyCurl() {
         var prompt = qs("promptInput").value.trim() || "请只回复 ok";
@@ -1574,12 +1676,17 @@ const HTML = `<!doctype html>
       function bind() {
         syncKeyInputs();
         qs("loginForm").addEventListener("submit", submitLogin);
-        qs("saveKeyBtn").addEventListener("click", saveKey);
-        qs("clearKeyBtn").addEventListener("click", clearKey);
-        qs("toggleKeyBtn").addEventListener("click", function () {
-          var input = qs("adminPasswordInput");
+        qs("settingsBtn").addEventListener("click", openSettings);
+        qs("settingsCloseBtn").addEventListener("click", closeSettings);
+        qs("settingsOverlay").addEventListener("click", function (event) {
+          if (event.target === qs("settingsOverlay")) closeSettings();
+        });
+        qs("settingsSaveKeyBtn").addEventListener("click", saveKey);
+        qs("settingsClearKeyBtn").addEventListener("click", clearKey);
+        qs("settingsToggleKeyBtn").addEventListener("click", function () {
+          var input = qs("settingsAdminPasswordInput");
           input.type = input.type === "password" ? "text" : "password";
-          qs("toggleKeyBtn").textContent = input.type === "password" ? "显示" : "隐藏";
+          qs("settingsToggleKeyBtn").textContent = input.type === "password" ? "显示" : "隐藏";
         });
         qs("modelSelect").addEventListener("change", function () {
           state.selectedModel = qs("modelSelect").value || "";

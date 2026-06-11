@@ -8,6 +8,7 @@ export interface PublicApiKey {
   source: ApiKeySource;
   label: string;
   masked: string;
+  secret?: string;
   enabled: boolean;
   readonly: boolean;
   created_at?: number;
@@ -18,6 +19,7 @@ interface StoredApiKey {
   id: string;
   hash: string;
   masked: string;
+  secret?: string;
   label?: string;
   enabled: boolean;
   created_at: number;
@@ -89,11 +91,15 @@ export async function addApiKey(env: Env, args: { key?: string; label?: string; 
       id,
       hash,
       masked: maskApiKey(secret),
+      secret,
       label,
       enabled: args.enabled ?? true,
       created_at: now,
       updated_at: now,
     });
+  }
+  if (existing) {
+    existing.secret = secret;
   }
 
   await writeStore(env, store);
@@ -208,6 +214,7 @@ function publicManagedKey(row: StoredApiKey): PublicApiKey {
     source: "managed",
     label: cleanLabel(row.label) || "Managed API key",
     masked: row.masked || "sk-…",
+    secret: row.secret || undefined,
     enabled: row.enabled !== false,
     readonly: false,
     created_at: row.created_at,
@@ -221,6 +228,7 @@ function normalizeStoredApiKey(row: StoredApiKey): StoredApiKey {
     id: String(row.id || apiKeyId(hash)).trim(),
     hash,
     masked: String(row.masked || "sk-…").trim(),
+    secret: typeof row.secret === "string" ? row.secret.trim() : undefined,
     label: cleanLabel(row.label || "Managed API key"),
     enabled: row.enabled !== false,
     created_at: Number(row.created_at || nowSeconds()),
